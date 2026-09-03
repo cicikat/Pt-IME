@@ -30,3 +30,7 @@
 每期 PLAN 末尾有验收标准，真机（用户自己的手机）装上用，用户说行才算完。
 
 ## Imported Claude Cowork project instructions
+
+## 提交流程
+
+- 每完成一个阶段任务或一份工单就立即创建独立 commit；开始新阶段前先检查工作区，提交后保持工作区干净。
