@@ -104,6 +104,17 @@ private val CHINESE_PUNCTUATION = mapOf(
     ";" to "；", ":" to "：", "(" to "（", ")" to "）",
 )
 
+// Long-press alternatives follow the same convention as the main Chinese layout:
+// use full-width Chinese punctuation when one exists, while symbols such as @/#
+// remain ASCII because Chinese has no distinct equivalent.
+private val CHINESE_LONG_PRESS_PUNCTUATION = mapOf(
+    "," to "，", "." to "。", "!" to "！", "?" to "？",
+    ";" to "；", ":" to "：", "(" to "（", ")" to "）",
+    "[" to "【", "]" to "】", "{" to "｛", "}" to "｝",
+    "<" to "＜", ">" to "＞", "\"" to "“", "'" to "‘",
+    "-" to "－", "_" to "＿", "/" to "／", "\\" to "＼",
+)
+
 @Composable
 @OptIn(ExperimentalCoroutinesApi::class)
 internal fun ImeRoot(
@@ -594,7 +605,10 @@ internal fun ImeRoot(
                                 },
                                 onLongPressAlt = { corner ->
                                     flushComposingAsLiteral()
-                                    onCommitText(corner)
+                                    val output = if (mode == InputMode.Chinese) {
+                                        CHINESE_LONG_PRESS_PUNCTUATION[corner] ?: corner
+                                    } else corner
+                                    onCommitText(output)
                                 },
                                 // Voice entry has no dedicated key anymore -- long-pressing
                                 // space opens it instead (PLAN M1.7 "语音入口改为长按空格",

@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.chacha.jadeime.ServiceLocator
 import com.chacha.jadeime.settings.ui.SettingsRoot
+import com.chacha.jadeime.theme.ThemePackageRepository
 
 /** Ordinary Activity host for the app's two settings destinations. */
 class SettingsActivity : ComponentActivity() {
@@ -23,19 +24,21 @@ class SettingsActivity : ComponentActivity() {
     private var themeImportTick by mutableIntStateOf(0)
     private var page by mutableStateOf(SettingsPage.General)
     private lateinit var appearanceRepository: SettingsAppearanceRepository
+    private lateinit var packageRepository: ThemePackageRepository
 
     private val importThemeLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@registerForActivityResult
-        val text = runCatching {
-            contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-        }.getOrNull() ?: return@registerForActivityResult
+        val bytes = runCatching { contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull() ?: return@registerForActivityResult
         val fileName = queryDisplayName(uri) ?: "theme_${System.currentTimeMillis()}.json"
-        if (ServiceLocator.themeRepository.importThemeFile(fileName, text)) themeImportTick++
+        val ok = if (fileName.endsWith(".zip", true)) packageRepository.importZip(bytes, fileName).isSuccess
+        else ServiceLocator.themeRepository.importThemeFile(fileName, bytes.toString(Charsets.UTF_8))
+        if (ok) themeImportTick++
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ServiceLocator.init(applicationContext)
+        packageRepository = ThemePackageRepository(applicationContext)
         page = SettingsPage.fromIntent(intent)
         appearanceRepository = SettingsAppearanceRepository(applicationContext)
         setContent {
@@ -50,7 +53,7 @@ class SettingsActivity : ComponentActivity() {
                 onBackToGeneral = { page = SettingsPage.General },
                 onOpenImeSettings = ::openImeSettings,
                 onShowPicker = ::showInputMethodPicker,
-                onImportTheme = { importThemeLauncher.launch("application/json") },
+                onImportTheme = { importThemeLauncher.launch("*/*") },
             )
         }
     }

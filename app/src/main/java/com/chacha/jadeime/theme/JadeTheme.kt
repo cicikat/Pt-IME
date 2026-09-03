@@ -37,6 +37,13 @@ data class JadeTheme(
     val bgBlur: Int = 0,
     /** 0f-1f black scrim over the background image, for text legibility. */
     val bgDim: Float = 0f,
+    val fontPath: String? = null,
+    val fontScale: Float = 1f,
+    val keyPressAnimation: AnimationSpec = AnimationSpec(),
+    val idleAnimation: AnimationSpec = AnimationSpec(),
+    val regionAlpha: RegionAlpha = RegionAlpha(),
 )
+data class AnimationSpec(val enabled: Boolean = false, val durationMs: Int = 180, val maxObjects: Int = 0)
+data class RegionAlpha(val background: Float = 1f, val keys: Float = 1f, val candidates: Float = 1f, val toolbar: Float = 1f, val panel: Float = 1f)
 
 val LocalJadeTheme = staticCompositionLocalOf { BuiltInThemes.light }

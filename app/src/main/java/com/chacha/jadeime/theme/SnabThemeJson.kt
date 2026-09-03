@@ -44,6 +44,12 @@ data class SnabThemeJson(
     val candidates: RegionOverride? = null,
     val keys: RegionOverride? = null,
     val panel: RegionOverride? = null,
+    val formatVersion: Int = 1,
+    val minAppVersion: Int = 1,
+    val font: String? = null,
+    val keyPressAnimation: AnimationJson? = null,
+    val idleAnimation: AnimationJson? = null,
+    val transparency: TransparencyJson? = null,
 )
 
 @Serializable
@@ -51,6 +57,8 @@ data class RegionOverride(
     val bg: String? = null,
     val text: String? = null,
 )
+@Serializable data class AnimationJson(val enabled: Boolean = false, val durationMs: Int = 180, val maxObjects: Int = 0)
+@Serializable data class TransparencyJson(val background: Float = 1f, val keys: Float = 1f, val candidates: Float = 1f, val toolbar: Float = 1f, val panel: Float = 1f)
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -82,6 +90,19 @@ private fun SnabThemeJson.toJadeTheme(id: String): JadeTheme = JadeTheme(
     bgImage = bgImage,
     bgBlur = bgBlur.coerceIn(0, 25),
     bgDim = bgDim.coerceIn(0f, 1f),
+    fontPath = font,
+    fontScale = fontScale.coerceIn(0.75f, 1.5f),
+    keyPressAnimation = keyPressAnimation.toAnimation(),
+    idleAnimation = idleAnimation.toAnimation(),
+    regionAlpha = transparency.toRegionAlpha(),
+)
+private fun AnimationJson?.toAnimation() = AnimationSpec(this?.enabled == true, (this?.durationMs ?: 180).coerceIn(16, 1000), (this?.maxObjects ?: 0).coerceIn(0, 24))
+private fun TransparencyJson?.toRegionAlpha() = RegionAlpha(
+    this?.background?.coerceIn(0f, 1f) ?: 1f,
+    this?.keys?.coerceIn(0f, 1f) ?: 1f,
+    this?.candidates?.coerceIn(0f, 1f) ?: 1f,
+    this?.toolbar?.coerceIn(0f, 1f) ?: 1f,
+    this?.panel?.coerceIn(0f, 1f) ?: 1f,
 )
 
 private fun Int.dpValue() = androidx.compose.ui.unit.Dp(this.toFloat())
