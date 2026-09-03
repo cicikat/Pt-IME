@@ -36,8 +36,8 @@ def main() -> int:
             "WHERE pinyin_key = ? ORDER BY base_freq DESC, id ASC",
             ("xuan",),
         ).fetchall()
-        yexuan_count = connection.execute(
-            "SELECT COUNT(*) FROM lexicon WHERE pinyin_key = ?", ("yexuan",)
+        juese_count = connection.execute(
+            "SELECT COUNT(*) FROM lexicon WHERE pinyin_key = ?", ("juese",)
         ).fetchone()[0]
         yx_rows = connection.execute(
             "SELECT id, pinyin_key, word, base_freq FROM lexicon "
@@ -51,14 +51,14 @@ def main() -> int:
             "xuan exact ranking drifted: "
             f"expected {EXPECTED_XUAN!r}, got {xuan_words!r}"
         )
-    if yexuan_count != 0:
+    if juese_count != 0:
         raise SystemExit(
-            f"yexuan must be absent from the static lexicon, found {yexuan_count} row(s)"
+            f"juese must be absent from the static lexicon, found {juese_count} row(s)"
         )
 
     print(f"lexicon rows: {count}")
     print(f"xuan exact top six: {xuan_words}")
-    print(f"yexuan static rows: {yexuan_count}")
+    print(f"juese static rows: {juese_count}")
     print(f"yx initialism sample: {yx_rows}")
     return 0
 

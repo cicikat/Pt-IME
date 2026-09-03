@@ -48,9 +48,9 @@ private val xuanFixture = listOf(
 )
 
 private val phraseFixture = listOf(
-    entry("ye", "y", "叶", 10_000),
-    entry("xuan", "x", "瑄", 9_000),
-    entry("yixie", "yx", "一些", 100_000),
+    entry("jue", "j", "角", 10_000),
+    entry("se", "s", "色", 9_000),
+    entry("jixu", "jx", "继续", 100_000),
 )
 
 private fun newEngine() = TrieLexiconEngine(staticEntries = fixture)
@@ -352,20 +352,20 @@ class TrieLexiconEngineTest {
     }
 
     @Test
-    fun `叶 and 瑄 become a phrase and abbreviation stays second`() {
+    fun `角 and 色 become a phrase and abbreviation stays second`() {
         val updates = mutableListOf<CandidateMemoryV2>()
         val engine = TrieLexiconEngine(staticEntries = phraseFixture, onMemoryChanged = updates::add)
 
-        engine.choose(engine.input("yexuan").first { it.word == "叶" && it.pinyinConsumed == "ye" })
-        engine.choose(engine.input("xuan").first { it.word == "瑄" && it.pinyinConsumed == "xuan" })
+        engine.choose(engine.input("juese").first { it.word == "角" && it.pinyinConsumed == "jue" })
+        engine.choose(engine.input("se").first { it.word == "色" && it.pinyinConsumed == "se" })
 
-        assertEquals("叶瑄", engine.input("yexuan").first().word)
-        assertEquals(CandidateSource.USER_PHRASE, engine.input("yexuan").first().source)
-        assertEquals("叶瑄", engine.input("yx")[1].word)
+        assertEquals("角色", engine.input("juese").first().word)
+        assertEquals(CandidateSource.USER_PHRASE, engine.input("juese").first().source)
+        assertEquals("角色", engine.input("js")[1].word)
 
         val restored = TrieLexiconEngine(staticEntries = phraseFixture, initialMemory = updates)
-        assertEquals("叶瑄", restored.input("yexuan").first().word)
-        assertEquals("叶瑄", restored.input("yx")[1].word)
+        assertEquals("角色", restored.input("juese").first().word)
+        assertEquals("角色", restored.input("js")[1].word)
     }
 
     @Test
@@ -374,13 +374,13 @@ class TrieLexiconEngineTest {
         val engine = TrieLexiconEngine(staticEntries = phraseFixture, onMemoryChanged = updates::add)
         engine.setLearningEnabled(false)
 
-        val leaf = engine.input("yexuan").first { it.word == "叶" && it.pinyinConsumed == "ye" }
+        val leaf = engine.input("juese").first { it.word == "角" && it.pinyinConsumed == "jue" }
         engine.choose(leaf)
-        engine.choose(engine.input("xuan").first { it.word == "瑄" && it.pinyinConsumed == "xuan" })
+        engine.choose(engine.input("se").first { it.word == "色" && it.pinyinConsumed == "se" })
 
         assertTrue(updates.isEmpty())
         engine.setLearningEnabled(true)
-        assertTrue(engine.input("yexuan").none { it.source == CandidateSource.USER_PHRASE })
+        assertTrue(engine.input("juese").none { it.source == CandidateSource.USER_PHRASE })
     }
 
     @Test
