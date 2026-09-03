@@ -2,7 +2,7 @@
 
 ## 项目
 
-安卓自用输入法「叶键盘 JadeBoard」。先读 `README.md`（决策）→ `DESIGN.md`(架构) → `PLAN.md`（当前干哪期）。
+安卓自用输入法「Pt JadeBoard」。先读 `README.md`（决策）→ `DESIGN.md`(架构) → `PLAN.md`（当前干哪期）。
 
 ## 规范
 
