@@ -14,6 +14,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -38,6 +39,7 @@ internal fun ThemeSettingsScreen(
     val repository = ServiceLocator.themeRepository
     var themes by remember { mutableStateOf(repository.listThemes()) }
     val selectedId by repository.selectedId.collectAsState()
+    var message by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(importTick) { themes = repository.listThemes() }
 
     LazyColumn(
@@ -70,18 +72,17 @@ internal fun ThemeSettingsScreen(
                             )
                         }
                         items(themes, key = { it.id }) { theme: JadeTheme ->
-                            ThemeSwatch(
-                                name = theme.name,
-                                theme = theme,
-                                selected = selectedId == theme.id,
-                                onClick = { repository.setSelected(theme.id) },
-                            )
+                            Column(Modifier.width(92.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                                ThemeSwatch(name = theme.name, theme = theme, selected = selectedId == theme.id, onClick = { repository.setSelected(theme.id) })
+                                if (theme.id.startsWith("user_")) TextButton(onClick = { if (repository.deleteTheme(theme.id)) { themes = repository.listThemes(); message = "主题已删除" } }) { Text("删除") }
+                            }
                         }
                     }
                     Spacer(Modifier.height(16.dp))
                     OutlinedButton(onClick = onImportTheme, modifier = Modifier.fillMaxWidth()) {
                         Text("导入主题 JSON（docs/theming.md 有格式说明）")
                     }
+                    message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 }
             }
         }
