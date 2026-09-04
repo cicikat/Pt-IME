@@ -41,7 +41,9 @@ internal object KeyboardLayouts {
         // Same stagger idea; the `'` separator moves off the left (next to shift)
         // to the right, between m and backspace (PLAN M1.7).
         listOf(KeySpec("⇧", KeyAction.Shift, weight = 1.35f)) +
-            textRow("zxcvbnm", corners = ":;\"'!?/") +
+            // Chinese quotes are a pair: the corner shows the opening mark,
+            // while a long press commits its matching closing mark.
+            textRow("zxcvbnm", corners = ":;“‘!?/") +
             listOf(
                 KeySpec("'", KeyAction.Separator, weight = 0.85f, showsPopup = true),
                 KeySpec("⌫", KeyAction.Backspace, weight = 1.35f),

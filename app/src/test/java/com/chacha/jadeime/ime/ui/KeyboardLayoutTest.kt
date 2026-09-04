@@ -16,4 +16,11 @@ class KeyboardLayoutTest {
         assertFalse(KeyboardLayouts.symbols.first().any { it.label in "0123456789" })
         assertEquals(KeyAction.Letters, KeyboardLayouts.symbols.last().first().action)
     }
+
+    @Test
+    fun `chinese quote corners expose opening and closing marks`() {
+        val corners = KeyboardLayouts.letters[2].mapNotNull { it.corner }
+        assertTrue(corners.contains("“"))
+        assertTrue(corners.contains("‘"))
+    }
 }

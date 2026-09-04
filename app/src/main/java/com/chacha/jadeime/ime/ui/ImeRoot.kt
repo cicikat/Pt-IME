@@ -111,7 +111,7 @@ private val CHINESE_LONG_PRESS_PUNCTUATION = mapOf(
     "," to "，", "." to "。", "!" to "！", "?" to "？",
     ";" to "；", ":" to "：", "(" to "（", ")" to "）",
     "[" to "【", "]" to "】", "{" to "｛", "}" to "｝",
-    "<" to "＜", ">" to "＞", "\"" to "“", "'" to "‘",
+    "<" to "＜", ">" to "＞", "“" to "”", "‘" to "’",
     "-" to "－", "_" to "＿", "/" to "／", "\\" to "＼",
 )
 
