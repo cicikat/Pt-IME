@@ -174,6 +174,7 @@ interface DraftDao {
     @Insert suspend fun insert(row: DraftEntryRow)
     @Query("DELETE FROM draft_entry WHERE created_at < :before") suspend fun deleteBefore(before: Long)
     @Query("DELETE FROM draft_entry") suspend fun deleteAll()
+    @Query("SELECT * FROM draft_entry WHERE id > :after ORDER BY id ASC") suspend fun after(after: Long): List<DraftEntryRow>
 }
 
 @Database(

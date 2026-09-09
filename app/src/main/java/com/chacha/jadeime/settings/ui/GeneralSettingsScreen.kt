@@ -69,7 +69,23 @@ internal fun GeneralSettingsScreen(
         item { OutlinedButton(onClick = onOpenRecent, modifier = Modifier.fillMaxWidth()) { Text("最近输入（3小时）") } }
         item { CustomPhraseSection() }
         item { EmojiMappingSection() }
+        item { DraftSyncSection() }
     }
+}
+
+@Composable
+private fun DraftSyncSection() {
+    val repo = ServiceLocator.draftSyncRepository
+    var enabled by remember { mutableStateOf(repo.enabled) }
+    var endpoint by remember { mutableStateOf(repo.endpoint) }
+    var token by remember { mutableStateOf(repo.token) }
+    Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("内网增量回传", style = MaterialTheme.typography.titleMedium)
+        Text("默认关闭，仅发送已脱敏的三小时记录；地址必须使用 HTTPS。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        androidx.compose.material3.Switch(checked = enabled, onCheckedChange = { enabled = it; repo.enabled = it })
+        OutlinedTextField(endpoint, { endpoint = it; repo.endpoint = it }, Modifier.fillMaxWidth(), label = { Text("HTTPS 地址") }, singleLine = true)
+        OutlinedTextField(token, { token = it; repo.token = it }, Modifier.fillMaxWidth(), label = { Text("配对密钥") }, singleLine = true)
+    }}
 }
 
 @Composable
