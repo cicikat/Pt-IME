@@ -51,6 +51,8 @@ object ServiceLocator {
         private set
     lateinit var layoutRepository: LayoutRepository
         private set
+    lateinit var symbolRepository: com.chacha.jadeime.ime.SymbolRepository
+        private set
     lateinit var draftRepository: DraftRepository
         private set
     lateinit var draftSyncRepository: DraftSyncRepository
@@ -58,6 +60,8 @@ object ServiceLocator {
 
     private val _engine = MutableStateFlow<TrieLexiconEngine?>(null)
     val engine: StateFlow<TrieLexiconEngine?> = _engine.asStateFlow()
+    private val _engineFailed = MutableStateFlow(false)
+    val engineFailed: StateFlow<Boolean> = _engineFailed.asStateFlow()
     @Volatile private var engineLearningEnabled = true
 
     fun init(context: Context) {
@@ -69,6 +73,7 @@ object ServiceLocator {
         clipboardRepository = ClipboardRepository(context.applicationContext)
         themeRepository = ThemeRepository(context.applicationContext)
         layoutRepository = LayoutRepository(context.applicationContext)
+        symbolRepository = com.chacha.jadeime.ime.SymbolRepository(context.applicationContext)
         draftRepository = DraftRepository(context.applicationContext)
         draftSyncRepository = DraftSyncRepository(context.applicationContext)
         scope.launch(Dispatchers.IO) {
@@ -81,11 +86,14 @@ object ServiceLocator {
             }
         }
         scope.launch(Dispatchers.IO) {
+            val started = android.os.SystemClock.elapsedRealtime()
             try {
                 _engine.value = repository.loadEngine().also {
                     it.setLearningEnabled(engineLearningEnabled)
                 }
+                Log.d(TAG, "engine ready elapsedMs=${android.os.SystemClock.elapsedRealtime() - started}")
             } catch (error: Exception) {
+                _engineFailed.value = true
                 Log.e(TAG, "failed to load pinyin engine", error)
             }
         }

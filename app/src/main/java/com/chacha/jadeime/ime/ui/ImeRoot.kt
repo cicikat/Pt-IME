@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -125,6 +126,7 @@ private val ENGLISH_LONG_PRESS_PUNCTUATION = mapOf(
 internal fun ImeRoot(
     enterLabel: String,
     engine: PinyinEngine?,
+    engineFailed: Boolean = false,
     onCommitText: (String) -> Unit,
     onPasteText: (String) -> Unit = onCommitText,
     onDeleteBackward: () -> Unit,
@@ -155,6 +157,7 @@ internal fun ImeRoot(
     themeRepository: ThemeRepository? = null,
     // PLAN M5 "布局也 JSON 化"; null (e.g. in @Preview) always uses the built-in rows.
     layoutRepository: LayoutRepository? = null,
+    symbolRepository: com.chacha.jadeime.ime.SymbolRepository? = null,
     // PLAN M2 "数字/URL/密码 inputType 自动切布局": JadeImeService derives this from the
     // focused field's EditorInfo. fieldGeneration bumps on every onStartInputView so
     // the effect below re-fires even when two consecutive fields share a constraint.
@@ -195,8 +198,7 @@ internal fun ImeRoot(
     // system to cancel when they miss several frames.
     val candidateDispatcher = remember { Dispatchers.Default.limitedParallelism(1) }
     var compositionRevision by remember { mutableStateOf(0L) }
-    // Candidate rows are empty while a revision is decoding; stale text must not
-    // look like a result for the new composing buffer.
+    // Keep the previous frame while decoding, but only the matching revision is actionable.
     var candidateRevision by remember { mutableStateOf(-1L) }
     // A serial dispatcher does not remove stale work from its queue. Keep the
     // latest Job so fast typing cancels queued and cooperative in-flight work.
@@ -220,8 +222,9 @@ internal fun ImeRoot(
     // reaches an already-open keyboard window immediately, no reopen needed.
     val selectedThemeId = themeRepository?.selectedId?.collectAsState()?.value
     val isDark = isSystemInDarkTheme()
-    val theme = remember(selectedThemeId, isDark, themeRepository) {
-        themeRepository?.resolveActive(isDark) ?: if (isDark) BuiltInThemes.dark else BuiltInThemes.light
+    val fallbackTheme = if (isDark) BuiltInThemes.dark else BuiltInThemes.light
+    val theme by produceState(fallbackTheme, selectedThemeId, isDark, themeRepository) {
+        value = withContext(Dispatchers.IO) { themeRepository?.resolveActive(isDark) ?: fallbackTheme }
     }
     // The previous fixed 252dp surface left the four letter rows feeling cramped,
     // especially once the candidate row was visible. Keep the value theme-driven
@@ -229,12 +232,18 @@ internal fun ImeRoot(
     val keyboardHeight = (268f * theme.keyboardHeightScale.coerceIn(0.85f, 1.25f)).dp
     // PLAN M5 "布局也 JSON 化": filesDir/layouts/*.json overrides the built-in rows
     // when present; layoutRepository null (e.g. @Preview) just means "always default".
-    val rows = remember(page, layoutRepository) {
-        when (page) {
+    val defaultRows = when (page) {
+        KeyboardPage.Letters -> KeyboardLayouts.letters
+        KeyboardPage.Numeric -> KeyboardLayouts.numeric
+        KeyboardPage.Symbols -> KeyboardLayouts.symbols
+    }
+    val rows by produceState(defaultRows, page, layoutRepository) {
+        value = defaultRows
+        value = withContext(Dispatchers.IO) { when (page) {
             KeyboardPage.Letters -> layoutRepository?.loadLetters() ?: KeyboardLayouts.letters
             KeyboardPage.Numeric -> layoutRepository?.loadNumeric() ?: KeyboardLayouts.numeric
             KeyboardPage.Symbols -> layoutRepository?.loadSymbols() ?: KeyboardLayouts.symbols
-        }
+        } }
     }
 
     // Pinyin never leaves the keyboard's own UI anymore (PLAN M1.6 "composing 拼音移入键盘内") --
@@ -247,8 +256,8 @@ internal fun ImeRoot(
         composingCursor = cursor.coerceIn(0, pinyin.length)
         val revision = ++compositionRevision
         candidateRevision = -1L
-        candidates = emptyList()
         if (pinyin.isEmpty()) {
+            candidates = emptyList()
             candidatesExpanded = false
             candidateWorkJob = scope.launch(candidateDispatcher) { engine?.reset() }
             return
@@ -286,6 +295,13 @@ internal fun ImeRoot(
             }
         }
     }
+
+    LaunchedEffect(engine) {
+        // Input typed during cold loading must be decoded without another keypress.
+        if (engine != null && composingPinyin.isNotEmpty()) updateComposing(composingPinyin, composingCursor)
+    }
+
+    LaunchedEffect(fieldGeneration) { updateComposing("") }
 
     fun insertIntoComposing(text: String) {
         updateComposing(
@@ -396,7 +412,7 @@ internal fun ImeRoot(
 
     CompositionLocalProvider(LocalJadeTheme provides theme) {
     MaterialTheme {
-        Box(modifier = Modifier.fillMaxWidth().pointerInput(onKeyboardActivity) {
+        Box(modifier = Modifier.fillMaxWidth().background(theme.background).pointerInput(onKeyboardActivity) {
             awaitEachGesture {
                 awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
                 onKeyboardActivity()
@@ -406,9 +422,10 @@ internal fun ImeRoot(
                 } while (true)
             }
         }) {
-            if (theme.bgImage != null) {
+            val backgroundPath = theme.bgImage
+            if (backgroundPath != null) {
                 ThemeBackgroundImage(
-                    path = theme.bgImage,
+                    path = backgroundPath,
                     blurRadius = theme.bgBlur,
                     dim = theme.bgDim,
                     modifier = Modifier.fillMaxWidth().height(keyboardHeight),
@@ -484,6 +501,7 @@ internal fun ImeRoot(
                         candidates = candidates,
                         expanded = candidatesExpanded,
                         candidatesReady = candidateRevision == compositionRevision,
+                        status = if (engineFailed) "词库加载失败，请重启输入法" else if (engine == null) "词库加载中…" else "正在更新…",
                         onPick = ::chooseCandidate,
                         onToggleExpand = { candidatesExpanded = !candidatesExpanded },
                         onMoveCursor = { composingCursor = it.coerceIn(0, composingPinyin.length) },
@@ -505,7 +523,7 @@ internal fun ImeRoot(
                     )
                 }
                 if (page == KeyboardPage.Symbols) {
-                    SymbolsPanel(theme = theme, onPick = { symbol -> flushComposingAsLiteral(); onCommitText(symbol) }, modifier = Modifier.weight(1f))
+                    SymbolsPanel(theme = theme, onPick = { symbol -> flushComposingAsLiteral(); onCommitText(symbol) }, modifier = Modifier.weight(1f), repository = symbolRepository)
                 } else rows.forEach { row ->
                     Row(
                         modifier = Modifier
@@ -717,6 +735,7 @@ private fun ComposingBar(
     candidates: List<Candidate>,
     expanded: Boolean,
     candidatesReady: Boolean,
+    status: String,
     onPick: (Candidate) -> Unit,
     onToggleExpand: () -> Unit,
     onMoveCursor: (Int) -> Unit,
@@ -781,7 +800,8 @@ private fun ComposingBar(
                 }
             }
         }
-        CandidateBar(
+        if (candidates.isEmpty() && !candidatesReady) Text(status, color = theme.text, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        else CandidateBar(
             candidates = candidates,
             enabled = candidatesReady,
             onPick = onPick,
@@ -1181,12 +1201,21 @@ private fun ThemeBackgroundImage(
     dim: Float,
     modifier: Modifier = Modifier,
 ) {
-    val bitmap = remember(path) {
-        runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull()
-    } ?: return
+    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, path) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(path, bounds)
+                val options = BitmapFactory.Options()
+                while (maxOf(bounds.outWidth, bounds.outHeight) / options.inSampleSize > 2048) options.inSampleSize *= 2
+                BitmapFactory.decodeFile(path, options)?.asImageBitmap()
+            }.getOrNull()
+        }
+    }
+    val readyBitmap = bitmap ?: return
     Box(modifier = modifier) {
         Image(
-            bitmap = bitmap,
+            bitmap = readyBitmap,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().blur(blurRadius.dp),

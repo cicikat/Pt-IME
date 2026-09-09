@@ -35,11 +35,11 @@ internal object SymbolCatalog {
 }
 
 @Composable
-internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
+internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, modifier: Modifier = Modifier, repository: com.chacha.jadeime.ime.SymbolRepository? = null) {
     var selected by rememberSaveable { mutableIntStateOf(0) }
-    var recent by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var recent by remember(repository) { mutableStateOf(repository?.recent().orEmpty()) }
     val categories = remember(recent) {
-        listOf(SymbolCategory("最近", recent)) + SymbolCatalog.categories.drop(1)
+        listOf(SymbolCategory("常用", (recent + SymbolCatalog.categories.first().values).distinct().take(40))) + SymbolCatalog.categories.drop(1)
     }
     Column(modifier.fillMaxWidth()) {
         LazyRow(Modifier.fillMaxWidth().height(36.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(horizontal = 6.dp)) {
@@ -48,7 +48,7 @@ internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, modifier: 
             }
         }
         LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            items(categories[selected].values) { value -> Box(Modifier.fillMaxWidth().height(38.dp).pointerInput(value) { detectTapGestures { recent = (listOf(value) + recent.filter { it != value }).take(30); onPick(value) } }, contentAlignment = Alignment.Center) { Text(value, color = theme.text, fontSize = 20.sp) } }
+            items(categories[selected].values, key = { it }) { value -> Box(Modifier.fillMaxWidth().height(38.dp).pointerInput(value) { detectTapGestures { repository?.record(value); recent = repository?.recent() ?: (listOf(value) + recent.filter { it != value }).take(40); onPick(value) } }, contentAlignment = Alignment.Center) { Text(value, color = theme.text, fontSize = 20.sp) } }
         }
     }
 }

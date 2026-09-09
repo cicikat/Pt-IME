@@ -106,9 +106,11 @@ class JadeImeService : InputMethodService() {
             )
             setContent {
                 val engine by ServiceLocator.engine.collectAsState()
+                val engineFailed by ServiceLocator.engineFailed.collectAsState()
                 ImeRoot(
                     enterLabel = enterLabel,
                     engine = engine,
+                    engineFailed = engineFailed,
                     onCommitText = ::commitText,
                     onPasteText = { currentInputConnection?.commitText(it, 1) },
                     onDeleteBackward = ::deleteBackward,
@@ -131,6 +133,7 @@ class JadeImeService : InputMethodService() {
                     clipboardRepository = ServiceLocator.clipboardRepository,
                     themeRepository = ServiceLocator.themeRepository,
                     layoutRepository = ServiceLocator.layoutRepository,
+                    symbolRepository = ServiceLocator.symbolRepository,
                     fieldConstraint = fieldConstraint,
                     fieldGeneration = fieldGeneration,
                 )
