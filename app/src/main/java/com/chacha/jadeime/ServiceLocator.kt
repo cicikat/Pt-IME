@@ -55,6 +55,8 @@ object ServiceLocator {
         private set
     lateinit var draftRepository: DraftRepository
         private set
+    lateinit var draftPrivacy: com.chacha.jadeime.data.DraftPrivacySettings
+        private set
     lateinit var draftSyncRepository: DraftSyncRepository
         private set
 
@@ -75,6 +77,7 @@ object ServiceLocator {
         layoutRepository = LayoutRepository(context.applicationContext)
         symbolRepository = com.chacha.jadeime.ime.SymbolRepository(context.applicationContext)
         draftRepository = DraftRepository(context.applicationContext)
+        draftPrivacy = com.chacha.jadeime.data.DraftPrivacySettings(context.applicationContext)
         draftSyncRepository = DraftSyncRepository(context.applicationContext)
         scope.launch(Dispatchers.IO) {
             for (write in draftWrites) runCatching { write() }
@@ -120,10 +123,11 @@ object ServiceLocator {
 
     fun recordDraft(text: String, appPackage: String, source: String) {
         if (!::draftRepository.isInitialized) return
+        if (!draftPrivacy.enabled) { breakDraftSession(); return }
         val session = draftSession.activity(appPackage, android.os.SystemClock.elapsedRealtime())
         val now = System.currentTimeMillis()
         val redacted = com.chacha.jadeime.data.DraftRedactor.redact(text)
-        draftWrites.trySend { draftRepository.record(redacted, appPackage, source, session, now) }
+        draftWrites.trySend { if (draftPrivacy.enabled) draftRepository.record(redacted, appPackage, source, session, now) }
     }
 
     suspend fun clearDrafts() {

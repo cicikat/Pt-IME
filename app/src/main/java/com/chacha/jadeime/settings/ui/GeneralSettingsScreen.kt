@@ -1,4 +1,6 @@
 package com.chacha.jadeime.settings.ui
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
@@ -80,12 +82,29 @@ private fun DraftSyncSection() {
     var endpoint by remember { mutableStateOf(repo.endpoint) }
     var token by remember { mutableStateOf(repo.token) }
     var interval by remember { mutableStateOf(repo.intervalMinutes.toString()) }
+    var recording by remember { mutableStateOf(ServiceLocator.draftPrivacy.enabled) }
+    var confirmSync by remember { mutableStateOf(false) }
+    if (confirmSync) AlertDialog(
+        onDismissRequest = { confirmSync = false },
+        title = { Text("允许发送输入草稿？") },
+        text = { Text("将发送最近3小时的输入文字、来源App和时间到：\n$endpoint\n\n仅数字替换为 *，其他文字保留。请只连接你信任的内网服务，接收端可以保存这些内容。") },
+        confirmButton = { TextButton(onClick = { enabled = true; repo.enabled = true; confirmSync = false }) { Text("开启回传") } },
+        dismissButton = { TextButton(onClick = { confirmSync = false }) { Text("取消") } },
+    )
     Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("三小时输入草稿", style = MaterialTheme.typography.titleMedium)
+        Text("默认关闭。开启后在手机保存输入文字，仅遮蔽数字；密码/邮箱等敏感输入框除外。关闭不会删除已有草稿，可在最近输入页清除。")
+        androidx.compose.material3.Switch(checked = recording, onCheckedChange = {
+            recording = it; ServiceLocator.draftPrivacy.enabled = it
+            if (!it) { enabled = false; repo.enabled = false; ServiceLocator.breakDraftSession() }
+        })
         Text("内网增量回传", style = MaterialTheme.typography.titleMedium)
-        Text("默认关闭，仅发送已脱敏的三小时记录；地址必须使用 HTTPS。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        androidx.compose.material3.Switch(checked = enabled, onCheckedChange = { enabled = it; repo.enabled = it })
-        OutlinedTextField(endpoint, { endpoint = it; repo.endpoint = it }, Modifier.fillMaxWidth(), label = { Text("HTTPS 地址") }, singleLine = true)
-        OutlinedTextField(token, { token = it; repo.token = it }, Modifier.fillMaxWidth(), label = { Text("配对密钥") }, singleLine = true)
+        Text("默认关闭。仅允许私有内网地址和 HTTPS，不跟随重定向。修改地址或密钥后需要重新开启。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        androidx.compose.material3.Switch(checked = enabled, enabled = recording && endpoint.startsWith("https://", true) && token.isNotBlank(), onCheckedChange = {
+            if (it) confirmSync = true else { enabled = false; repo.enabled = false }
+        })
+        OutlinedTextField(endpoint, { endpoint = it; repo.endpoint = it; enabled = false }, Modifier.fillMaxWidth(), label = { Text("HTTPS 地址") }, singleLine = true)
+        OutlinedTextField(token, { token = it; repo.token = it; enabled = false }, Modifier.fillMaxWidth(), label = { Text("配对密钥") }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
         OutlinedTextField(interval, { value -> interval = value.filter(Char::isDigit); value.toIntOrNull()?.let { repo.intervalMinutes = it } }, Modifier.fillMaxWidth(), label = { Text("发送间隔（分钟）") }, singleLine = true)
     }}
 }

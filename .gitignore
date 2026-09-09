@@ -6,4 +6,7 @@ local.properties
 *.iml
 *.apk
 tools/.cache/
-
+*.jks
+*.keystore
+keystore.properties
+release-signing.properties

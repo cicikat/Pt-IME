@@ -1,54 +1,107 @@
-# Pt 输入法 (JadeBoard)
+# Pt JadeBoard · 安卓输入法 v1.0
 
-一款个人自用的安卓输入法，优先本地离线运行，也支持连接电脑后端。统计只记录输入行为，不记录或上传任何输入明文。
+从个人日用需求出发的安卓输入法：中文拼音、英文、离线语音、可自定义皮肤，以及可选的三小时草稿与 **自建内网接口回传**。
 
-> 2026-09-09 当前实现补充：用户明确要求保留三小时输入草稿并可选回传电脑。草稿仅遮蔽阿拉伯数字、保留其他文字，与下述早期“只传统计”规划不同；上报仍默认关闭，敏感输入框不记录。语音现已改为内置 sherpa-onnx 中英双语离线模型，按需加载、闲置 60 秒释放。长条协议见 [三小时草稿 v2](docs/draft_sync_v2.md)，体验修正见 [体验检查](docs/ux_review_2026-09-09.md)。
+**无需账号，不绑定开发者服务器。** 打字和语音识别在手机本地运行。草稿记录、回传默认关闭，由你决定是否记录、发给哪台电脑、如何处理。
 
-新检出工程先执行 `python tools/prepare_voice.py` 准备校验过的模型及 AAR（代理连接失败可用 `--direct`），再运行 `gradlew assembleDebug`。约 198 MB 模型打包进 APK，手机不用再次下载。资源来源与固定 SHA-256 见 `tools/voice_assets.json`。
+[下载 v1.0.0](https://github.com/cicikat/Pt-IME/releases/tag/v1.0.0) · [接口协议](docs/draft_sync_v2.md) · [隐私说明](PRIVACY.md) · [许可证](LICENSE)
 
-## 需求评估结论（2026-07-17）
+## 安装与使用
 
-| 需求 | 可行性 | 说明 |
-|---|---|---|
-| 基础打字（26键/9键、中文拼音、英文） | ✅ 可行 | Android `InputMethodService` 标准路线，英文简单，拼音是全项目最大工作量 |
-| 语音转文字 | ✅ 可行 | sherpa-onnx 离线模型（本地）+ 可选 PC 后端 WebSocket（更准） |
-| 表情符号预设 | ✅ 简单 | emoji 面板 + 常用颜文字/短语预设 |
-| 智能词库（常打的字自动排前） | ✅ 可行 | 用户词频表，候选排序时叠加权重，这是自研引擎的天然优势 |
-| 中英切换、剪贴板 | ✅ 简单 | 标准功能 |
-| 皮肤/UI 自定义 | ✅ 可行 | JSON 主题方案（参考 FlorisBoard Snygg 的简化版） |
-| 击键统计回传日报/角色 | ✅ 可行 | IME 自研自用无网络限制，本地 SQLite 聚合，每日 HTTP 上报 |
+- Android 10+，仅 **arm64-v8a** 手机。下载 Release 的 `Pt-JadeBoard-v1.0.0-arm64-v8a.apk`，安装后在设置中启用并切换输入法。
+- 中英双语离线模型约 198 MB，已打包，无需另装系统语音服务。
+- 长按空格 → 等待“麦克风已开启” → 说话 → 点“完成”上屏；“取消”丢弃当前识别。需要麦克风权限。
+- 官方 Release 与早期 Debug 使用不同签名，不能直接覆盖。**不要直接卸载旧版：卸载会清除本地数据。** 首次切换请自行保存需要的短语、主题等内容，目前没有全量迁移工具。
 
-## 关键决策（已拍板）
+## v1 已有功能
 
-1. **拼音引擎：纯 Kotlin 自研词库引擎**，不用 librime/RIME。
-   - 理由：librime 需要 NDK + JNI + CMake 交叉编译，是 Trime/fcitx5-android 团队多年维护的深坑，Claude Code 施工风险极高；自研 Trie + 有界 Beam 解码全程 Kotlin，可控、可测试，且可在不记录明文的前提下做会话内重排。
-   - 代价：整句智能仍低于 RIME/搜狗（尚未引入大规模语言模型）；当前用词频与全局切分改善词组连打，后续可按需要接 librime JNI 或 PC 后端整句转换。
-   - 升级路线已留：候选不满意时 M-later 接 librime JNI 或 PC 后端整句转换，接口已按可替换设计（`PinyinEngine` 接口）。
-   - 词库：开源 rime-ice 雾凇拼音词库（GPL-3.0，自用无碍）转 SQLite。
-2. **语音：双通道**。默认本地 sherpa-onnx streaming zipformer 中英双语小模型（~40MB，流式实时上屏）；设置里可切 PC 后端模式（WebSocket 推流到电脑，电脑跑 FunASR/whisper，识别更准）。SenseVoice int8（~230MB）作为可选高精度本地模型，不默认内置。
-3. **回传内容（传什么，我替你拍了）**：只传行为画像，永不传输入内容明文。
-   - 数据集：击键数、打字字符数、退格数/退格率、会话次数、总时长、每小时分布、top 使用 App、中英文比例、语音输入次数/时长、emoji top5、深夜打字标记（0-5点有输入）。
-   - 角色看的是服务端派生的浓缩画像（总字数、活跃时段、late_night、退格率烦躁信号、emoji 情绪 top3、语音占比），能说出"你今天打了一万二千字，凌晨两点还在敲字"这类话，情绪价值拉满且零隐私泄露。
-   - **通道（2026-07-17 按三仓源码修订）**：IME 只推 Emerald-presence `POST /sensor/ime`（照抄其现有 `/sensor/push` 手机传感器模式，Bearer token）；assistant 无 HTTP 服务器（local-first 架构），其 daemon 从 Emerald-presence 落盘的 `data/ime_stats/{date}.json` 文件拉取（同它扫 obsidian vault 的模式）。
-   - 红线：密码/邮箱等敏感 inputType 字段完全不统计；明文内容任何情况不落盘不上传。
-4. **UI：Jetpack Compose 全自研**，不 fork 现有键盘。皮肤 = JSON 主题文件（颜色/圆角/字体大小/背景图/按键音），运行时热切换。
-5. **最低支持 Android 10 (API 29)，目标 API 35**，仅 arm64-v8a。
+| 功能 | 当前支持 |
+|---|---|
+| 拼音 | 26 键、全拼、简拼/混输、词组与长句候选、保守纠错、候选记忆 |
+| 交互 | Shift 中英文切换、角标长按、全半角标点、候选展开、拼音内部编辑、空格滑动光标 |
+| 符号与表情 | 分类符号、持久常用符号、Emoji 最近使用、颜文字、自定义短语 |
+| 剪贴板 | 本地历史、固定、删除、清空；剪贴板粘贴不进入草稿回传 |
+| 离线语音 | sherpa-onnx 中英双语流式识别、录音状态、真实音量条、临时文字回显 |
+| 主题 | 内置主题、JSON/主题包导入、自定义背景、主题与布局配置 |
+| 三小时草稿 | 手动开启后保存提交文字；同 App 连续输入合成长条，闲置 5 分钟或换输入 App 后另起一条 |
+| 内网回传 | 自建 HTTPS 接口、独立配对密钥、按记录版本增量发送 |
 
-## 参考项目（施工时可查源码抄思路，不 fork）
+语音模型按需加载，闲置 60 秒释放。候选后台计算，更新不先清空列表；冷启动词库加载完成后自动补算已经输入的拼音。
 
-- [FlorisBoard](https://github.com/florisboard/florisboard) — Compose IME 架构、Snygg 主题引擎
-- [HeliBoard](https://github.com/heliborg/heliboard) — 离线隐私键盘、布局定义
-- [fcitx5-android](https://github.com/fcitx5-android/fcitx5-android) / [Trime](https://github.com/osfans/trime) — librime 集成方式（备用升级路线）
-- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) — 离线 ASR，官方有 Android Kotlin 示例和 IME 语音示例
+## 让自己的电脑接收数据
 
-## 文档索引
+**接收端由用户自己实现和控制**，可以接自己的笔记、个人助手、LLM 工作流。输入法不调用 LLM，不提供公共接收服务器，不需要使用作者的其他项目。
 
-- `DESIGN.md` — 技术架构设计
-- `PLAN.md` — 分期施工计划（Claude Code 按此施工）
-- `CLAUDE.md` — 施工规范与约定
+1. 在电脑/NAS 部署 HTTPS POST 接口，使用手机系统信任的有效证书。
+2. 每台设备签发独立且可撤销的 Bearer 密钥，服务端据此识别设备。
+3. 在输入法中开启“三小时输入草稿”，填写完整 URL、密钥和间隔，再开启“内网增量回传”并确认。
+4. 接收 JSON 数组，按 `(设备身份, id)` 保存；更高 `revision` 的 `content` **覆盖**旧文本，不再追加一次。
 
-## 关联项目
+```http
+POST /v1/ime/drafts
+Authorization: Bearer <每台设备独立的密钥>
+Content-Type: application/json
+```
 
-- `D:\ai\assistant` — 日报小助手，接收统计数据（需在其侧新增 `/api/ime/stats` 接收端点）
-- `D:\ai\Emerald-presence` — AI 陪伴后端，接收每日画像（需新增接收端点）
-- `D:\ai\Emerald-mobile` — 陪伴前端（本项目不直接对接）
+```json
+[
+  {
+    "id": 123,
+    "created_at": 1788919200000,
+    "updated_at": 1788919380000,
+    "revision": 8,
+    "app_package": "com.tencent.mm",
+    "source": "mixed",
+    "content": "今天整理项目思路。\n再补*个测试。这句是语音输入。"
+  }
+]
+```
+
+`source` 为 `keyboard`、`voice` 或 `mixed`。整批保存成功后返回 `204` 或其他 `2xx`；失败下次重试。字段、幂等和接入清单见 [接口协议](docs/draft_sync_v2.md)。
+
+**内网是代码限制，不只是宣传：** 仅允许 HTTPS 和私有 IPv4（10/8、172.16/12、192.168/16）、IPv6 ULA/链路本地及回环地址。域名必须解析为允许的地址；公网 IP、CGNAT 100.64/10、HTTP、重定向均不支持。保留系统证书校验，不支持“忽略证书错误”。VPN 使用允许的私有地址且路由可达也可连接；不按 Wi-Fi 名称判断内网。
+
+默认间隔 15 分钟，输入法进程存活时每分钟检查，不保证后台准点。修改地址/密钥会关闭回传，需重新开启。电脑端的保留、删除与 LLM 加工由用户控制，手机清空不发远程删除请求。
+
+## 把 APK 发给别人会同步我的数据吗？
+
+**只分享 APK 不会带走手机里的草稿、词记忆、剪贴板、主题设置、地址或密钥。** 发布包没有预填个人服务器或密钥，别人全新安装的草稿与回传都关闭，不会连接你的电脑。
+
+但不要分享配对密钥或“应用数据备份”。主动把接口和密钥给别人，对方就可能以该设备身份上传数据。每人每设备单独配对，泄露后在服务器撤销。
+
+Release 不可调试，禁止应用备份/迁移；密钥以 Android Keystore AES-GCM 加密保存、界面隐藏。仍应只连接自己信任的服务器。
+
+## 隐私与已知边界
+
+- **数字遮蔽不是匿名化**：仅阿拉伯数字变 `*`，其他文字保留。草稿/回传是内容记录，不是匿名统计。
+- 密码、邮箱等正确标记的敏感输入框不记草稿、不学习、不启动语音；普通聊天框里的敏感文字无法自动识别。
+- 草稿是提交历史，退格和光标编辑不会回写历史，不等同于最终文稿或聊天记录。
+- 三小时从最后追加计算；进程停止时不能定时清理，下次运行/读取/回传时清理。
+- 剪贴板历史独立保存完整内容，不做数字遮蔽，可自行清除。
+- 语音音频不落盘、不上传；final 仅在草稿开关开启时入池。
+- 9 键拼音、滑行输入、远程语音、自动日报不属于 v1 已完成功能。
+
+详见 [PRIVACY.md](PRIVACY.md)。
+
+## 从源码构建
+
+Kotlin 2.x + Jetpack Compose，单 app 模块；Android SDK 35、JDK 17+、Python 3.11+。
+
+```shell
+python tools/prepare_voice.py
+./gradlew assembleDebug testDebugUnitTest
+```
+
+Windows 用 `gradlew.bat`。代理下载失败可试 `python tools/prepare_voice.py --direct`。模型/AAR 使用固定 SHA-256，缓存在 `tools/.cache/`，仅构建时下载，手机不用下载。
+
+签名步骤见 [发布指南](docs/releasing.md)。没有签名配置时生成未签名 Release；切勿上传私钥和密码。
+
+词库构建脚本在 `tools/build_lexicon.py`，v1 Release 提供对应 YAML 源数据包。架构和历史计划见 [DESIGN](DESIGN.md)、[PLAN](docs/PLAN.md)，历史勾选不代表当前完整支持。
+
+## 许可证与致谢
+
+本项目自写代码采用 **PolyForm Noncommercial License 1.0.0**：可以按条款查看、修改和非商业使用。因为限制商业用途，准确称为“源码公开”，不宣称符合 OSI 开源定义。
+
+第三方组件不被非商业条款重新授权：独立 rime-ice 衍生词库保留 GPL-3.0-only；sherpa-onnx、所用模型、ONNX Runtime 等保留各自许可证。详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+
+感谢 [rime-ice](https://github.com/iDvel/rime-ice)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)，以及提供 IME 架构参考的 FlorisBoard、HeliBoard 等项目。

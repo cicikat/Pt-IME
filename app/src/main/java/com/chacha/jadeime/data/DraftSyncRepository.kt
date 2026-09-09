@@ -5,6 +5,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Dns
+import java.net.Proxy
+import java.net.UnknownHostException
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
@@ -13,11 +17,37 @@ import org.json.JSONObject
 /** Opt-in LAN sync of already-redacted draft rows. No content is logged. */
 class DraftSyncRepository(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("draft_sync", Context.MODE_PRIVATE)
+    private val secret = PairingSecret(prefs)
+    private val privacy = DraftPrivacySettings(context)
+    init {
+        if (!prefs.getBoolean("v1_consent_reset", false)) {
+            val previous = prefs.getString("token", "").orEmpty()
+            if (previous.isNotEmpty()) secret.write(previous)
+            prefs.edit().remove("token").putBoolean("enabled", false).putBoolean("v1_consent_reset", true).apply()
+        }
+    }
     private val db = UserDataDatabase.create(context.applicationContext)
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .proxy(Proxy.NO_PROXY)
+        .followRedirects(false).followSslRedirects(false)
+        .dns(object : Dns {
+          override fun lookup(hostname: String): List<java.net.InetAddress> {
+            val addresses = Dns.SYSTEM.lookup(hostname)
+            if (addresses.isEmpty() || addresses.any { !LanAddressPolicy.allows(it) }) {
+                throw UnknownHostException("Draft sync requires a private LAN address")
+            }
+            return addresses
+          }
+        })
+        .addNetworkInterceptor { chain ->
+            val address = chain.connection()?.route()?.socketAddress?.address
+            if (address == null || !LanAddressPolicy.allows(address)) throw java.io.IOException("Non-LAN destination blocked")
+            if (!enabled || !privacy.enabled) throw java.io.IOException("Draft sync disabled")
+            chain.proceed(chain.request())
+        }.build()
     var enabled: Boolean get() = prefs.getBoolean("enabled", false); set(v) { prefs.edit().putBoolean("enabled", v).apply() }
-    var endpoint: String get() = prefs.getString("endpoint", "") ?: ""; set(v) { prefs.edit().putString("endpoint", v.trim()).apply() }
-    var token: String get() = prefs.getString("token", "") ?: ""; set(v) { prefs.edit().putString("token", v).apply() }
+    var endpoint: String get() = prefs.getString("endpoint", "") ?: ""; set(v) { prefs.edit().putString("endpoint", v.trim()).putBoolean("enabled", false).apply() }
+    var token: String get() = secret.read(); set(v) { secret.write(v) }
     var intervalMinutes: Int get() = prefs.getInt("interval_minutes", 15); set(v) { prefs.edit().putInt("interval_minutes", v.coerceIn(1, 1440)).apply() }
     private val mutex = Mutex()
     private var lastAttempt = 0L
@@ -30,7 +60,9 @@ class DraftSyncRepository(context: Context) {
     suspend fun sync(): Boolean = mutex.withLock {
         val target = endpoint
         val credential = token
-        if (!enabled || credential.isBlank() || !target.startsWith("https://", ignoreCase = true)) return@withLock false
+        val url = target.toHttpUrlOrNull()
+        if (!enabled || !privacy.enabled || credential.isBlank() || url == null || !url.isHttps ||
+            url.username.isNotEmpty() || url.password.isNotEmpty()) return@withLock false
         // A new pairing/receiver must not inherit acknowledgements from the old one.
         val receiver = java.security.MessageDigest.getInstance("SHA-256")
             .digest("$target\n$credential".toByteArray()).joinToString("") { "%02x".format(it) }

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -16,6 +18,15 @@ val verifyVoiceAssets by tasks.registering {
 }
 tasks.named("preBuild").configure { dependsOn(verifyVoiceAssets) }
 
+val prepareLegalAssets by tasks.registering(Sync::class) {
+    into(layout.buildDirectory.dir("generated/legalAssets/legal"))
+    from(rootProject.file("LICENSE"))
+    from(rootProject.file("THIRD_PARTY_NOTICES.md"))
+    from(rootProject.file("PRIVACY.md"))
+    from(rootProject.file("docs/licenses"))
+}
+tasks.named("preBuild").configure { dependsOn(prepareLegalAssets) }
+
 android {
     namespace = "com.chacha.jadeime"
     compileSdk = 35
@@ -24,8 +35,8 @@ android {
         applicationId = "com.chacha.jadeime"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 10000
+        versionName = "1.0.0"
 
         ndk {
             abiFilters += "arm64-v8a"
@@ -40,6 +51,19 @@ android {
                 "proguard-rules.pro",
             )
         }
+    }
+
+    val signingPropertiesFile = file(System.getenv("JADE_SIGNING_PROPERTIES")
+        ?: "${System.getProperty("user.home")}/.jadeboard/release-signing.properties")
+    if (signingPropertiesFile.isFile) {
+        val signingProperties = Properties().apply { signingPropertiesFile.inputStream().use { load(it) } }
+        signingConfigs.create("distribution") {
+            storeFile = file(signingProperties.getProperty("storeFile"))
+            storePassword = signingProperties.getProperty("storePassword")
+            keyAlias = signingProperties.getProperty("keyAlias")
+            keyPassword = signingProperties.getProperty("keyPassword")
+        }
+        buildTypes["release"].signingConfig = signingConfigs.getByName("distribution")
     }
 
     compileOptions {
@@ -57,6 +81,7 @@ android {
     }
 
     sourceSets["main"].assets.srcDir(rootProject.file("tools/.cache/voice/runtime/assets"))
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/legalAssets"))
     androidResources { noCompress += "onnx" }
 
     packaging {

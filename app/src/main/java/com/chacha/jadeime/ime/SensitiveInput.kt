@@ -10,7 +10,9 @@ import android.view.inputmethod.EditorInfo
  * collector will reuse it verbatim instead of re-deriving the mask ("为 M3 铺垫").
  */
 internal fun EditorInfo?.isSensitiveField(): Boolean {
-    val type = this?.inputType ?: return false
+    val editor = this ?: return true
+    if ((editor.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0) return true
+    val type = editor.inputType
     val variation = type and InputType.TYPE_MASK_VARIATION
     return when (type and InputType.TYPE_MASK_CLASS) {
         InputType.TYPE_CLASS_TEXT -> variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
