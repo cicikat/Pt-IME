@@ -173,6 +173,7 @@ interface DraftDao {
     suspend fun recent(since: Long): List<DraftEntryRow>
     @Insert suspend fun insert(row: DraftEntryRow)
     @Query("DELETE FROM draft_entry WHERE created_at < :before") suspend fun deleteBefore(before: Long)
+    @Query("DELETE FROM draft_entry") suspend fun deleteAll()
 }
 
 @Database(

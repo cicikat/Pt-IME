@@ -16,10 +16,11 @@ import java.util.*
 @Composable
 internal fun RecentDraftScreen(onBack: () -> Unit) {
     var rows by remember { mutableStateOf<List<DraftEntryRow>>(emptyList()) }
+    val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     LaunchedEffect(Unit) { rows = ServiceLocator.draftRepository.recent() }
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("最近输入（3小时）", style = MaterialTheme.typography.titleLarge); TextButton(onClick = onBack) { Text("返回") } }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("最近输入（3小时）", style = MaterialTheme.typography.titleLarge); Row { TextButton(onClick = { scope.launch { ServiceLocator.draftRepository.clear(); rows = emptyList() } }) { Text("全部清除") }; TextButton(onClick = onBack) { Text("返回") } } }
         Text("仅显示已脱敏内容，数字显示为 *。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(rows, key = { it.id }) { row -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
