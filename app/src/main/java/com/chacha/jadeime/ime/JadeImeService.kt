@@ -177,22 +177,23 @@ class JadeImeService : InputMethodService() {
     }
 
     private var deleteSnapshot: CharSequence? = null
-    private var deleteSnapshotStart = 0
-    private var deleteSnapshotEnd = 0
+    private var deleteSnapshotCursor = 0
     private fun deleteLongPress() {
         if (currentInputEditorInfo.isSensitiveField()) return
         val ic = currentInputConnection ?: return
         val before = ic.getTextBeforeCursor(4096, 0) ?: return
         val after = ic.getTextAfterCursor(4096, 0) ?: return
         deleteSnapshot = before.toString() + after.toString()
-        deleteSnapshotStart = before.length
-        deleteSnapshotEnd = before.length
+        deleteSnapshotCursor = before.length
         ic.deleteSurroundingText(before.length, after.length)
     }
     private fun restoreSnapshotIfAvailable(): Boolean {
         val snap = deleteSnapshot ?: return false
         if (currentInputEditorInfo.isSensitiveField()) { deleteSnapshot = null; return false }
-        currentInputConnection?.commitText(snap, 1)
+        val connection = currentInputConnection ?: return false
+        connection.commitText(snap, 1)
+        val cursor = deleteSnapshotCursor.coerceIn(0, snap.length)
+        connection.setSelection(cursor, cursor)
         deleteSnapshot = null
         return true
     }
