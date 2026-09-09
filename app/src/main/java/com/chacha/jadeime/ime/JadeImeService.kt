@@ -148,6 +148,9 @@ class JadeImeService : InputMethodService() {
 
     private fun commitText(text: String) {
         currentInputConnection?.commitText(text, 1)
+        if (!currentInputEditorInfo.isSensitiveField() && text.isNotEmpty()) {
+            ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "keyboard")
+        }
     }
 
     private fun deleteBackward() {
