@@ -3,6 +3,7 @@ package com.chacha.jadeime
 import android.content.Context
 import android.util.Log
 import com.chacha.jadeime.data.ClipboardRepository
+import com.chacha.jadeime.data.DraftRepository
 import com.chacha.jadeime.data.PhraseRepository
 import com.chacha.jadeime.data.PinyinRepository
 import com.chacha.jadeime.emoji.EmojiRepository
@@ -49,6 +50,8 @@ object ServiceLocator {
         private set
     lateinit var layoutRepository: LayoutRepository
         private set
+    lateinit var draftRepository: DraftRepository
+        private set
 
     private val _engine = MutableStateFlow<TrieLexiconEngine?>(null)
     val engine: StateFlow<TrieLexiconEngine?> = _engine.asStateFlow()
@@ -63,6 +66,7 @@ object ServiceLocator {
         clipboardRepository = ClipboardRepository(context.applicationContext)
         themeRepository = ThemeRepository(context.applicationContext)
         layoutRepository = LayoutRepository(context.applicationContext)
+        draftRepository = DraftRepository(context.applicationContext)
         scope.launch(Dispatchers.IO) {
             try {
                 _engine.value = repository.loadEngine().also {
@@ -85,6 +89,11 @@ object ServiceLocator {
                 Log.e(TAG, "failed to record clipboard entry", error)
             }
         }
+    }
+
+    fun recordDraft(text: String, appPackage: String, source: String) {
+        if (!::draftRepository.isInitialized) return
+        scope.launch(Dispatchers.IO) { draftRepository.record(text, appPackage, source) }
     }
 
     /** Ends composing state; learned ranking remains in opaque, plaintext-free storage. */

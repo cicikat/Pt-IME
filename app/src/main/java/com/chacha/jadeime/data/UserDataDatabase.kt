@@ -71,6 +71,15 @@ data class ClipboardEntryRow(
     val timestamp: Long,
 )
 
+@Entity(tableName = "draft_entry")
+data class DraftEntryRow(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "app_package") val appPackage: String,
+    val source: String,
+    val content: String,
+)
+
 @Dao
 interface UserDictDao {
     @Query("SELECT * FROM learned_word")
@@ -158,6 +167,14 @@ interface ClipboardDao {
     suspend fun trimUnpinnedBeyond(keep: Int)
 }
 
+@Dao
+interface DraftDao {
+    @Query("SELECT * FROM draft_entry WHERE created_at >= :since ORDER BY created_at DESC")
+    suspend fun recent(since: Long): List<DraftEntryRow>
+    @Insert suspend fun insert(row: DraftEntryRow)
+    @Query("DELETE FROM draft_entry WHERE created_at < :before") suspend fun deleteBefore(before: Long)
+}
+
 @Database(
     entities = [
         LearnedWordRow::class,
@@ -166,19 +183,21 @@ interface ClipboardDao {
         ClipboardEntryRow::class,
         CandidateMemoryRow::class,
         CandidateMemoryV2Row::class,
+        DraftEntryRow::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class UserDataDatabase : RoomDatabase() {
     abstract fun userDictDao(): UserDictDao
     abstract fun customPhraseDao(): CustomPhraseDao
     abstract fun clipboardDao(): ClipboardDao
+    abstract fun draftDao(): DraftDao
 
     companion object {
         fun create(context: Context): UserDataDatabase =
             Room.databaseBuilder(context, UserDataDatabase::class.java, "userdata.db")
-                .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
 
         private val MIGRATION_3_4 = object : Migration(3, 4) {
@@ -202,6 +221,11 @@ abstract class UserDataDatabase : RoomDatabase() {
                         "`lexicon_version` TEXT NOT NULL, " +
                         "PRIMARY KEY(`key_kind`, `entry_ids`, `lexicon_version`))",
                 )
+            }
+        }
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `draft_entry` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `created_at` INTEGER NOT NULL, `app_package` TEXT NOT NULL, `source` TEXT NOT NULL, `content` TEXT NOT NULL)")
             }
         }
     }
