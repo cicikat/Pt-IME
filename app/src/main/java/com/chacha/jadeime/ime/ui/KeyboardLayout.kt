@@ -45,7 +45,10 @@ internal object KeyboardLayouts {
             // while a long press commits its matching closing mark.
             textRow("zxcvbnm", corners = ":;“‘!?/") +
             listOf(
-                KeySpec("'", KeyAction.Separator, weight = 0.85f, showsPopup = true),
+                // The separator key is also the single-quote key when no pinyin is
+                // composing. Its corner keeps long-press behavior consistent with
+                // the double-quote key above.
+                KeySpec("'", KeyAction.Separator, weight = 0.85f, showsPopup = true, corner = "‘"),
                 KeySpec("⌫", KeyAction.Backspace, weight = 1.35f),
             ),
         listOf(

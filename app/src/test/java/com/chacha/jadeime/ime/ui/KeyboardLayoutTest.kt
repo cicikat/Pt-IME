@@ -2,6 +2,7 @@ package com.chacha.jadeime.ime.ui
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KeyboardLayoutTest {
@@ -22,5 +23,7 @@ class KeyboardLayoutTest {
         val corners = KeyboardLayouts.letters[2].mapNotNull { it.corner }
         assertTrue(corners.contains("“"))
         assertTrue(corners.contains("‘"))
+        assertEquals("'", KeyboardLayouts.letters[2][8].label)
+        assertEquals("‘", KeyboardLayouts.letters[2][8].corner)
     }
 }

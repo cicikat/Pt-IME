@@ -111,8 +111,12 @@ private val CHINESE_LONG_PRESS_PUNCTUATION = mapOf(
     "," to "，", "." to "。", "!" to "！", "?" to "？",
     ";" to "；", ":" to "：", "(" to "（", ")" to "）",
     "[" to "【", "]" to "】", "{" to "｛", "}" to "｝",
-    "<" to "＜", ">" to "＞", "“" to "”", "‘" to "’",
+    "<" to "＜", ">" to "＞",
     "-" to "－", "_" to "＿", "/" to "／", "\\" to "＼",
+)
+
+private val ENGLISH_LONG_PRESS_PUNCTUATION = mapOf(
+    "“" to "\"", "”" to "\"", "‘" to "'", "’" to "'",
 )
 
 @Composable
@@ -160,8 +164,6 @@ internal fun ImeRoot(
     var pageBeforeSymbols by rememberSaveable { mutableStateOf(initialPage) }
     var shift by rememberSaveable { mutableStateOf(ShiftState.Off) }
     var mode by rememberSaveable { mutableStateOf(initialMode) }
-    var chineseDoubleOpen by rememberSaveable { mutableStateOf(true) }
-    var chineseSingleOpen by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(fieldGeneration) {
         when (fieldConstraint) {
             FieldConstraint.ForceEnglish -> mode = InputMode.English
@@ -507,14 +509,6 @@ internal fun ImeRoot(
                                         KeyAction.Text -> {
                                             val raw = requireNotNull(key.value)
                                             when {
-                                                mode == InputMode.Chinese && key.corner == "“" -> {
-                                                    onCommitText(if (chineseDoubleOpen) "“" else "”")
-                                                    chineseDoubleOpen = !chineseDoubleOpen
-                                                }
-                                                mode == InputMode.Chinese && key.corner == "‘" -> {
-                                                    onCommitText(if (chineseSingleOpen) "‘" else "’")
-                                                    chineseSingleOpen = !chineseSingleOpen
-                                                }
                                                 mode == InputMode.Chinese &&
                                                     page == KeyboardPage.Letters &&
                                                     raw.all(Char::isLetter) -> {
@@ -597,11 +591,7 @@ internal fun ImeRoot(
                                             if (mode == InputMode.Chinese && composingPinyin.isNotEmpty()) {
                                                 insertIntoComposing(PINYIN_SEPARATOR.toString())
                                             } else {
-                                                if (mode == InputMode.Chinese) {
-                                                    val text = if (chineseSingleOpen) "‘" else "’"
-                                                    chineseSingleOpen = !chineseSingleOpen
-                                                    onCommitText(text)
-                                                } else onCommitText("'")
+                                                onCommitText("'")
                                             }
                                         }
                                         KeyAction.Spacer -> Unit
@@ -620,8 +610,14 @@ internal fun ImeRoot(
                                 onLongPressAlt = { corner ->
                                     flushComposingAsLiteral()
                                     val output = if (mode == InputMode.Chinese) {
-                                        CHINESE_LONG_PRESS_PUNCTUATION[corner] ?: corner
-                                    } else corner
+                                        when (corner) {
+                                            "“" -> "“”"
+                                            "‘" -> "‘’"
+                                            else -> CHINESE_LONG_PRESS_PUNCTUATION[corner] ?: corner
+                                        }
+                                    } else {
+                                        ENGLISH_LONG_PRESS_PUNCTUATION[corner] ?: corner
+                                    }
                                     onCommitText(output)
                                 },
                                 // Voice entry has no dedicated key anymore -- long-pressing
