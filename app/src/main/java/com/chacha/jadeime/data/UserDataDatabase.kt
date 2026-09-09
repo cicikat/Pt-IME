@@ -78,6 +78,8 @@ data class DraftEntryRow(
     @ColumnInfo(name = "app_package") val appPackage: String,
     val source: String,
     val content: String,
+    @ColumnInfo(name = "updated_at", defaultValue = "0") val updatedAt: Long = createdAt,
+    @ColumnInfo(defaultValue = "1") val revision: Long = 1,
 )
 
 @Dao
@@ -169,10 +171,12 @@ interface ClipboardDao {
 
 @Dao
 interface DraftDao {
-    @Query("SELECT * FROM draft_entry WHERE created_at >= :since ORDER BY created_at DESC")
+    @Query("SELECT * FROM draft_entry WHERE updated_at >= :since ORDER BY updated_at DESC")
     suspend fun recent(since: Long): List<DraftEntryRow>
-    @Insert suspend fun insert(row: DraftEntryRow)
-    @Query("DELETE FROM draft_entry WHERE created_at < :before") suspend fun deleteBefore(before: Long)
+    @Insert suspend fun insert(row: DraftEntryRow): Long
+    @Update suspend fun update(row: DraftEntryRow)
+    @Query("SELECT * FROM draft_entry WHERE id = :id") suspend fun find(id: Long): DraftEntryRow?
+    @Query("DELETE FROM draft_entry WHERE updated_at < :before") suspend fun deleteBefore(before: Long)
     @Query("DELETE FROM draft_entry") suspend fun deleteAll()
     @Query("SELECT * FROM draft_entry WHERE id > :after ORDER BY id ASC") suspend fun after(after: Long): List<DraftEntryRow>
 }
@@ -187,7 +191,7 @@ interface DraftDao {
         CandidateMemoryV2Row::class,
         DraftEntryRow::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class UserDataDatabase : RoomDatabase() {
@@ -199,7 +203,7 @@ abstract class UserDataDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): UserDataDatabase =
             Room.databaseBuilder(context, UserDataDatabase::class.java, "userdata.db")
-                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build()
 
         private val MIGRATION_3_4 = object : Migration(3, 4) {
@@ -223,6 +227,13 @@ abstract class UserDataDatabase : RoomDatabase() {
                         "`lexicon_version` TEXT NOT NULL, " +
                         "PRIMARY KEY(`key_kind`, `entry_ids`, `lexicon_version`))",
                 )
+            }
+        }
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE draft_entry ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE draft_entry ADD COLUMN revision INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("UPDATE draft_entry SET updated_at = created_at")
             }
         }
         private val MIGRATION_5_6 = object : Migration(5, 6) {

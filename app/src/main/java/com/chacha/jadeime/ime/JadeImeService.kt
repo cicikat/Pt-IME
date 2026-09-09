@@ -34,6 +34,11 @@ import com.chacha.jadeime.settings.SettingsPage
 /** Android entry point for the JadeBoard input method. */
 class JadeImeService : InputMethodService() {
     private var voice: VoiceInputController? = null
+    private var voiceState by mutableStateOf<com.chacha.jadeime.ime.ui.VoiceUiState?>(null)
+    private var voiceGeneration = 0
+    private val voiceHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var voiceTimeout: Runnable? = null
+
     private var viewTreeOwners: ImeViewTreeOwners? = null
     private var enterLabel by mutableStateOf("↵")
     private var fieldConstraint by mutableStateOf(FieldConstraint.None)
@@ -105,6 +110,7 @@ class JadeImeService : InputMethodService() {
                     enterLabel = enterLabel,
                     engine = engine,
                     onCommitText = ::commitText,
+                    onPasteText = { currentInputConnection?.commitText(it, 1) },
                     onDeleteBackward = ::deleteBackward,
                     onDeleteLongPress = ::deleteLongPress,
                     onEnter = ::performEnter,
@@ -113,6 +119,10 @@ class JadeImeService : InputMethodService() {
                     // toolbar reaches the skin picker directly instead of a mixed page.
                     onOpenSkins = ::openThemeSettings,
                     onOpenMic = ::startVoice,
+                    voiceState = voiceState,
+                    onStopVoice = ::stopVoice,
+                    onCancelVoice = ::cancelVoice,
+                    onKeyboardActivity = ::keyboardActivity,
                     onOpenSettings = ::openSettings,
                     onCollapseKeyboard = { requestHideSelf(0) },
                     emojiRepository = ServiceLocator.emojiRepository,
@@ -128,8 +138,21 @@ class JadeImeService : InputMethodService() {
         }
     }
 
+    override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(info, restarting)
+        cancelVoice()
+        keyboardActivity()
+    }
+
+    override fun onFinishInput() {
+        cancelVoice()
+        super.onFinishInput()
+    }
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        cancelVoice()
+        keyboardActivity()
         enterLabel = info?.actionLabel?.toString()
             ?: actionLabel((info?.imeOptions ?: 0) and IME_MASK_ACTION)
         fieldConstraint = info.deriveFieldConstraint()
@@ -140,6 +163,7 @@ class JadeImeService : InputMethodService() {
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        cancelVoice()
         viewTreeOwners?.pause()
         ServiceLocator.endEngineSession()
         deleteSnapshot = null
@@ -147,32 +171,101 @@ class JadeImeService : InputMethodService() {
     }
 
     override fun onDestroy() {
-        voice?.destroy()
+        cancelVoice()
         clipboardManager.removePrimaryClipChangedListener(clipboardListener)
         viewTreeOwners?.destroy()
         viewTreeOwners = null
         super.onDestroy()
     }
 
-    private fun startVoice(mode: com.chacha.jadeime.ime.ui.InputMode) {
-        if (currentInputConnection == null || getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
-            Toast.makeText(this, "当前输入框不可用", Toast.LENGTH_SHORT).show(); return
-        }
-        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "请先允许录音权限", Toast.LENGTH_SHORT).show(); return
-        }
-        voice?.destroy()
-        voice = VoiceInputController(this).also { c ->
-            val locale = com.chacha.jadeime.voice.VoiceLocaleResolver.resolve(mode)
-            c.start(locale, { text -> commitText(text); ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "voice"); voice?.destroy(); voice = null }, { Toast.makeText(this, "语音识别失败", Toast.LENGTH_SHORT).show(); voice?.destroy(); voice = null })
-        }
+    private fun keyboardActivity() {
+        if (currentInputEditorInfo.isSensitiveField()) ServiceLocator.breakDraftSession()
+        else currentInputEditorInfo?.packageName?.let { ServiceLocator.draftActivity(it) }
     }
 
-    private fun commitText(text: String) {
-        currentInputConnection?.commitText(text, 1)
+    private fun cancelVoice() {
+        voiceGeneration++
+        voiceTimeout?.let { voiceHandler.removeCallbacks(it) }
+        voiceTimeout = null
+        voice?.destroy()
+        voice = null
+        voiceState = null
+    }
+
+    private fun voiceFailure(message: String) {
+        cancelVoice()
+        voiceState = com.chacha.jadeime.ime.ui.VoiceUiState(message = message, busy = false)
+    }
+
+    private fun armVoiceTimeout(generation: Int, millis: Long) {
+        voiceTimeout?.let { voiceHandler.removeCallbacks(it) }
+        voiceTimeout = Runnable { if (generation == voiceGeneration) voiceFailure("语音服务无响应，请重试或检查系统语音服务") }
+            .also { voiceHandler.postDelayed(it, millis) }
+    }
+
+    private fun stopVoice() {
+        voiceState = voiceState?.copy(message = "正在识别…", listening = false, level = 0f)
+        armVoiceTimeout(voiceGeneration, 15_000)
+        runCatching { voice?.stop() }.onFailure { voiceFailure("无法停止录音，请重试") }
+    }
+
+    private fun startVoice(mode: com.chacha.jadeime.ime.ui.InputMode) {
+        cancelVoice()
+        if (currentInputConnection == null || getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
+            voiceFailure("当前输入框不可用"); return
+        }
+        if (currentInputEditorInfo.isSensitiveField()) {
+            voiceFailure("敏感输入框不启用语音"); return
+        }
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            voiceFailure("未开启麦克风：请在设置中允许录音权限"); return
+        }
+        voiceState = com.chacha.jadeime.ime.ui.VoiceUiState()
+        val generation = voiceGeneration
+        val controller = VoiceInputController(this)
+        voice = controller
+        armVoiceTimeout(generation, 15_000)
+        runCatching {
+            controller.start(
+                com.chacha.jadeime.voice.VoiceLocaleResolver.resolve(mode),
+                listener = { text ->
+                    if (generation == voiceGeneration) {
+                        if (!currentInputEditorInfo.isSensitiveField()) commitInput(text, "voice")
+                        cancelVoice()
+                    }
+                },
+                error = { code -> if (generation == voiceGeneration) voiceFailure(when (code) {
+                    0 -> "系统没有可用的语音识别服务"
+                    6, 7 -> "没有识别到说话，请重试"
+                    9 -> "麦克风权限不可用，请检查设置"
+                    1, 2 -> "语音服务网络连接失败"
+                    8 -> "语音服务忙，请稍后重试"
+                    else -> "语音识别失败（错误 $code），请重试"
+                }) },
+                partial = { text -> if (generation == voiceGeneration) voiceState = voiceState?.copy(partial = text) },
+                ready = { if (generation == voiceGeneration) {
+                    voiceState = voiceState?.copy(message = "麦克风已开启 · 正在聆听", listening = true)
+                    armVoiceTimeout(generation, 120_000)
+                } },
+                rms = { value -> if (generation == voiceGeneration && voiceState?.listening == true) {
+                    voiceState = voiceState?.copy(level = ((value + 2f) / 12f).coerceIn(0f, 1f))
+                } },
+                ended = { if (generation == voiceGeneration) {
+                    voiceState = voiceState?.copy(message = "录音结束 · 正在识别…", listening = false, level = 0f)
+                    armVoiceTimeout(generation, 15_000)
+                } },
+            )
+        }.onFailure { if (generation == voiceGeneration) voiceFailure("无法启动麦克风或系统语音服务") }
+    }
+
+    private fun commitText(text: String) = commitInput(text, "keyboard")
+
+    private fun commitInput(text: String, source: String) {
+        val connection = currentInputConnection ?: return
+        if (!connection.commitText(text, 1)) return
         val keyguard = getSystemService(KeyguardManager::class.java)
-        if (currentInputConnection != null && !keyguard.isKeyguardLocked && !currentInputEditorInfo.isSensitiveField() && text.isNotEmpty()) {
-            ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "keyboard")
+        if (!keyguard.isKeyguardLocked && !currentInputEditorInfo.isSensitiveField() && text.isNotEmpty()) {
+            ServiceLocator.recordDraft(text, currentInputEditorInfo?.packageName.orEmpty(), source)
         }
     }
 

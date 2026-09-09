@@ -72,6 +72,15 @@ object ServiceLocator {
         draftRepository = DraftRepository(context.applicationContext)
         draftSyncRepository = DraftSyncRepository(context.applicationContext)
         scope.launch(Dispatchers.IO) {
+            for (write in draftWrites) runCatching { write() }
+        }
+        scope.launch(Dispatchers.IO) {
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                runCatching { draftRepository.prune(); draftSyncRepository.syncIfDue() }
+            }
+        }
+        scope.launch(Dispatchers.IO) {
             try {
                 _engine.value = repository.loadEngine().also {
                     it.setLearningEnabled(engineLearningEnabled)
@@ -95,9 +104,27 @@ object ServiceLocator {
         }
     }
 
+    private val draftSession = com.chacha.jadeime.data.DraftSession()
+    private val draftWrites = kotlinx.coroutines.channels.Channel<suspend () -> Unit>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+
+    fun draftActivity(appPackage: String) { draftSession.activity(appPackage, android.os.SystemClock.elapsedRealtime()) }
+    fun breakDraftSession() { draftSession.breakSession() }
+
     fun recordDraft(text: String, appPackage: String, source: String) {
         if (!::draftRepository.isInitialized) return
-        scope.launch(Dispatchers.IO) { draftRepository.record(text, appPackage, source); runCatching { draftSyncRepository.sync() } }
+        val session = draftSession.activity(appPackage, android.os.SystemClock.elapsedRealtime())
+        val now = System.currentTimeMillis()
+        val redacted = com.chacha.jadeime.data.DraftRedactor.redact(text)
+        draftWrites.trySend { draftRepository.record(redacted, appPackage, source, session, now) }
+    }
+
+    suspend fun clearDrafts() {
+        val done = kotlinx.coroutines.CompletableDeferred<Unit>()
+        draftWrites.send {
+            try { draftRepository.clear(); done.complete(Unit) }
+            catch (error: Exception) { done.completeExceptionally(error) }
+        }
+        done.await()
     }
 
     /** Ends composing state; learned ranking remains in opaque, plaintext-free storage. */

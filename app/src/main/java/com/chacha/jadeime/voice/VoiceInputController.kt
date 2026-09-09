@@ -9,16 +9,18 @@ import java.util.Locale
 
 class VoiceInputController(private val context: Context) {
     private var recognizer: SpeechRecognizer? = null
-    fun start(locale: Locale, listener: (String) -> Unit, error: (Int) -> Unit, partial: (String) -> Unit = {}) {
+    fun start(locale: Locale, listener: (String) -> Unit, error: (Int) -> Unit, partial: (String) -> Unit = {}, ready: () -> Unit = {}, rms: (Float) -> Unit = {}, ended: () -> Unit = {}) {
         if (!SpeechRecognizer.isRecognitionAvailable(context)) { error(0); return }
         recognizer?.destroy()
-        recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+        val instance = SpeechRecognizer.createSpeechRecognizer(context)
+        recognizer = instance
+        instance.apply {
             setRecognitionListener(object : RecognitionListener {
                 override fun onResults(results: android.os.Bundle) { results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(listener) ?: error(SpeechRecognizer.ERROR_NO_MATCH) }
-                override fun onError(code: Int) { error(code); destroy() }
-                override fun onReadyForSpeech(p: android.os.Bundle?) {} override fun onBeginningOfSpeech() {}
-                override fun onRmsChanged(v: Float) {} override fun onBufferReceived(b: ByteArray?) {}
-                override fun onEndOfSpeech() {} override fun onPartialResults(b: android.os.Bundle?) { b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(partial) }
+                override fun onError(code: Int) { error(code) }
+                override fun onReadyForSpeech(p: android.os.Bundle?) { ready() } override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(v: Float) { rms(v) } override fun onBufferReceived(b: ByteArray?) {}
+                override fun onEndOfSpeech() { ended() } override fun onPartialResults(b: android.os.Bundle?) { b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(partial) }
                 override fun onEvent(t: Int, b: android.os.Bundle?) {}
             })
             startListening(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {

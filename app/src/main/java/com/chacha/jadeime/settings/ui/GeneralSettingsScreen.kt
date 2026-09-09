@@ -51,7 +51,7 @@ internal fun GeneralSettingsScreen(
         item {
             SettingsPageHeader(
                 title = "Pt键盘设置",
-                description = "本地离线优先，不记录或上传输入明文。",
+                description = "最近输入保留3小时，仅遮蔽数字；回传默认关闭。",
                 darkMode = darkMode,
                 onToggleDarkMode = onToggleDarkMode,
             )
@@ -61,7 +61,7 @@ internal fun GeneralSettingsScreen(
             val granted = androidx.compose.ui.platform.LocalContext.current.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
             Card(modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (granted) "录音权限：已允许" else "录音权限：未允许", style = MaterialTheme.typography.titleMedium)
-                Text("长按空格使用语音输入。拒绝权限不影响普通空格输入。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("长按空格使用系统语音识别，可能需要联网；尚未内置离线模型。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick = onOpenAudioSettings) { Text("打开录音权限设置") }
             }}
         }

@@ -21,8 +21,8 @@ internal fun RecentDraftScreen(onBack: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     LaunchedEffect(Unit) { rows = ServiceLocator.draftRepository.recent() }
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("最近输入（3小时）", style = MaterialTheme.typography.titleLarge); Row { TextButton(onClick = { scope.launch { ServiceLocator.draftRepository.clear(); rows = emptyList() } }) { Text("全部清除") }; TextButton(onClick = onBack) { Text("返回") } } }
-        Text("仅显示已脱敏内容，数字显示为 *。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("最近输入（3小时）", style = MaterialTheme.typography.titleLarge); Row { TextButton(onClick = { scope.launch { ServiceLocator.clearDrafts(); rows = emptyList() } }) { Text("全部清除") }; TextButton(onClick = onBack) { Text("返回") } } }
+        Text("同一App连续输入合并，闲置5分钟或切换App另起一条。数字显示为 *，其他文字保留。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(rows, key = { it.id }) { row -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
                 Text(row.content)

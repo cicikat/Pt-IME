@@ -1,5 +1,7 @@
 # DESIGN — 技术架构设计
 
+> 当前草稿及语音实现以 [三小时草稿 v2](docs/draft_sync_v2.md) 为准：用户授权的数字遮蔽长条与版本化 HTTPS 回传、Android 系统语音识别。下述日报聚合与 sherpa-onnx 为原规划。
+
 ## 1. 总体架构
 
 ```

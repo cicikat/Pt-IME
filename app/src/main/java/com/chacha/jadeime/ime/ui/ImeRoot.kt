@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -125,6 +126,7 @@ internal fun ImeRoot(
     enterLabel: String,
     engine: PinyinEngine?,
     onCommitText: (String) -> Unit,
+    onPasteText: (String) -> Unit = onCommitText,
     onDeleteBackward: () -> Unit,
     onDeleteLongPress: () -> Unit = onDeleteBackward,
     onEnter: () -> Unit,
@@ -135,6 +137,10 @@ internal fun ImeRoot(
     onMoveCursor: (Int) -> Unit,
     onOpenSkins: () -> Unit,
     onOpenMic: (InputMode) -> Unit,
+    voiceState: VoiceUiState? = null,
+    onStopVoice: () -> Unit = {},
+    onCancelVoice: () -> Unit = {},
+    onKeyboardActivity: () -> Unit = {},
     onOpenSettings: () -> Unit,
     onCollapseKeyboard: () -> Unit,
     // M2's emoji/kaomoji/phrase panel lives entirely inside ImeRoot (unlike the M5/M4
@@ -390,7 +396,16 @@ internal fun ImeRoot(
 
     CompositionLocalProvider(LocalJadeTheme provides theme) {
     MaterialTheme {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth().pointerInput(onKeyboardActivity) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                onKeyboardActivity()
+                do {
+                    val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                    if (event.changes.none { it.pressed }) break
+                } while (true)
+            }
+        }) {
             if (theme.bgImage != null) {
                 ThemeBackgroundImage(
                     path = theme.bgImage,
@@ -407,7 +422,9 @@ internal fun ImeRoot(
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(theme.keyGap),
             ) {
-              if (showEmojiPanel) {
+              if (voiceState != null) {
+                VoicePanel(voiceState, theme, onStopVoice, onCancelVoice, onOpenSettings)
+              } else if (showEmojiPanel) {
                 EmojiPanel(
                     categories = EmojiCatalog.categories,
                     recent = emojiRecent,
@@ -431,7 +448,7 @@ internal fun ImeRoot(
                     clipboardEntries = clipboardEntries,
                     onPasteClipboard = { content ->
                         flushComposingAsLiteral()
-                        onCommitText(content)
+                        onPasteText(content)
                     },
                     onToggleClipboardPin = { row ->
                         scope.launch {
@@ -623,10 +640,8 @@ internal fun ImeRoot(
                                     }
                                     onCommitText(output)
                                 },
-                                // Voice entry has no dedicated key anymore -- long-pressing
-                                // space opens it instead (PLAN M1.7 "语音入口改为长按空格",
-                                // still a Toast stub until M4 wires real dictation).
-                                onSpaceLongPress = if (key.action == KeyAction.Space) ({ onOpenMic(mode) }) else null,
+                                // Long-press space opens the in-keyboard dictation panel.
+                                onSpaceLongPress = if (key.action == KeyAction.Space) ({ flushComposingAsLiteral(); onOpenMic(mode) }) else null,
                                 onMoveCursor = if (
                                     key.action == KeyAction.Space &&
                                     !(mode == InputMode.Chinese && composingPinyin.isNotEmpty())
@@ -646,7 +661,7 @@ internal fun ImeRoot(
             // ComposingBar) so it paints on top of the keyboard rows below it --
             // Compose has no clipping/z-index across separate subtrees, only draw
             // order, and the rows compose after ComposingBar inside the Column.
-            if (mode == InputMode.Chinese && candidatesExpanded && composingPinyin.isNotEmpty()) {
+            if (voiceState == null && mode == InputMode.Chinese && candidatesExpanded && composingPinyin.isNotEmpty()) {
                 ExpandedCandidatesPanel(
                     candidates = candidates,
                     enabled = candidateRevision == compositionRevision,
@@ -968,7 +983,10 @@ private fun JadeKey(
                 },
             )
         }
-    } else if (key.action == KeyAction.Space && onMoveCursor != null) {
+    } else if (key.action == KeyAction.Space) {
+        val currentActivate by rememberUpdatedState(onActivate)
+        val currentVoice by rememberUpdatedState(onSpaceLongPress)
+        val currentMove by rememberUpdatedState(onMoveCursor)
         // Hand-rolled instead of composing detectTapGestures + detectDragGestures:
         // both start from the same awaitFirstDown(), and running them as independent
         // detectors racing on one pointer stream is exactly the kind of "who
@@ -979,7 +997,7 @@ private fun JadeKey(
         // coroutineScope{launch{}} (that's what the Backspace-repeat gesture above
         // does, but from an *unrestricted* PressGestureScope) -- withTimeoutOrNull
         // is a plain suspend fun with no receiver of its own, so it's fair game here.
-        Modifier.pointerInput(onActivate, onSpaceLongPress, onMoveCursor, viewConfiguration) {
+        Modifier.pointerInput(viewConfiguration) {
             val touchSlop = viewConfiguration.touchSlop
             val stepPx = touchSlop * 3f
             awaitEachGesture {
@@ -997,17 +1015,17 @@ private fun JadeKey(
                         if (change == null || !change.pressed) {
                             change?.consume()
                             released = true
-                        } else if (kotlin.math.abs(change.position.x - lastStepX) > touchSlop) {
+                        } else if (currentMove != null && kotlin.math.abs(change.position.x - lastStepX) > touchSlop) {
                             dragging = true
                         }
                     }
                 } == null
 
                 var longPressFired = false
-                if (timedOut && !dragging && !released && onSpaceLongPress != null) {
+                if (timedOut && !dragging && !released && currentVoice != null) {
                     longPressFired = true
                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    onSpaceLongPress()
+                    currentVoice?.invoke()
                 }
 
                 if (dragging) {
@@ -1021,13 +1039,13 @@ private fun JadeKey(
                         change.consume()
                         var delta = change.position.x - lastStepX
                         while (delta > stepPx) {
-                            onMoveCursor(1)
+                            currentMove?.invoke(1)
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             lastStepX += stepPx
                             delta -= stepPx
                         }
                         while (delta < -stepPx) {
-                            onMoveCursor(-1)
+                            currentMove?.invoke(-1)
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             lastStepX -= stepPx
                             delta += stepPx
@@ -1047,7 +1065,7 @@ private fun JadeKey(
                 }
 
                 pressed = false
-                if (!dragging && !longPressFired) onActivate()
+                if (!dragging && !longPressFired) currentActivate()
             }
         }
     } else {
