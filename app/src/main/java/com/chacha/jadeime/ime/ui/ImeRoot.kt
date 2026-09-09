@@ -126,6 +126,7 @@ internal fun ImeRoot(
     engine: PinyinEngine?,
     onCommitText: (String) -> Unit,
     onDeleteBackward: () -> Unit,
+    onDeleteLongPress: () -> Unit = onDeleteBackward,
     onEnter: () -> Unit,
     // Positive = move right, negative = move left; called once per character step
     // (PLAN M2 "空格滑动移动光标"). Only wired up when there's no pending pinyin
@@ -604,6 +605,8 @@ internal fun ImeRoot(
                                             shift = if (shift == ShiftState.Locked) ShiftState.Off else ShiftState.Locked
                                         }
                                     }
+                                } else if (key.action == KeyAction.Backspace) {
+                                    onDeleteLongPress
                                 } else {
                                     null
                                 },
@@ -949,6 +952,7 @@ private fun JadeKey(
                             val repeatJob = launch {
                                 delay(viewConfiguration.longPressTimeoutMillis.toLong())
                                 repeated = true
+                                onLongPress?.invoke()
                                 while (isActive) {
                                     onActivate()
                                     delay(55)

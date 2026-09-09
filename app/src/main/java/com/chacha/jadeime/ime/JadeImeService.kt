@@ -105,6 +105,7 @@ class JadeImeService : InputMethodService() {
                     engine = engine,
                     onCommitText = ::commitText,
                     onDeleteBackward = ::deleteBackward,
+                    onDeleteLongPress = ::deleteLongPress,
                     onEnter = ::performEnter,
                     onMoveCursor = ::moveCursor,
                     // Theme and general settings have distinct entry points so the
@@ -131,6 +132,7 @@ class JadeImeService : InputMethodService() {
         enterLabel = info?.actionLabel?.toString()
             ?: actionLabel((info?.imeOptions ?: 0) and IME_MASK_ACTION)
         fieldConstraint = info.deriveFieldConstraint()
+        deleteSnapshot = null
         ServiceLocator.setEngineLearningEnabled(!info.isSensitiveField())
         fieldGeneration++
         viewTreeOwners?.resume()
@@ -139,6 +141,7 @@ class JadeImeService : InputMethodService() {
     override fun onFinishInputView(finishingInput: Boolean) {
         viewTreeOwners?.pause()
         ServiceLocator.endEngineSession()
+        deleteSnapshot = null
         super.onFinishInputView(finishingInput)
     }
 
@@ -169,7 +172,29 @@ class JadeImeService : InputMethodService() {
     }
 
     private fun deleteBackward() {
+        if (restoreSnapshotIfAvailable()) return
         sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+    }
+
+    private var deleteSnapshot: CharSequence? = null
+    private var deleteSnapshotStart = 0
+    private var deleteSnapshotEnd = 0
+    private fun deleteLongPress() {
+        if (currentInputEditorInfo.isSensitiveField()) return
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(4096, 0) ?: return
+        val after = ic.getTextAfterCursor(4096, 0) ?: return
+        deleteSnapshot = before.toString() + after.toString()
+        deleteSnapshotStart = before.length
+        deleteSnapshotEnd = before.length
+        ic.deleteSurroundingText(before.length, after.length)
+    }
+    private fun restoreSnapshotIfAvailable(): Boolean {
+        val snap = deleteSnapshot ?: return false
+        if (currentInputEditorInfo.isSensitiveField()) { deleteSnapshot = null; return false }
+        currentInputConnection?.commitText(snap, 1)
+        deleteSnapshot = null
+        return true
     }
 
     private fun moveCursor(direction: Int) {
