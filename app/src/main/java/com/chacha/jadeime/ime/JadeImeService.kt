@@ -223,11 +223,11 @@ class JadeImeService : InputMethodService() {
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             voiceFailure("未开启麦克风：请在设置中允许录音权限"); return
         }
-        voiceState = com.chacha.jadeime.ime.ui.VoiceUiState()
+        voiceState = com.chacha.jadeime.ime.ui.VoiceUiState(message = "正在加载离线语音模型…")
         val generation = voiceGeneration
         val controller = VoiceInputController(this)
         voice = controller
-        armVoiceTimeout(generation, 15_000)
+        armVoiceTimeout(generation, 60_000)
         runCatching {
             controller.start(
                 com.chacha.jadeime.voice.VoiceLocaleResolver.resolve(mode),
@@ -243,6 +243,7 @@ class JadeImeService : InputMethodService() {
                     9 -> "麦克风权限不可用，请检查设置"
                     1, 2 -> "语音服务网络连接失败"
                     8 -> "语音服务忙，请稍后重试"
+                    100 -> "离线模型或录音启动失败，请关闭语音后重试"
                     else -> "语音识别失败（错误 $code），请重试"
                 }) },
                 partial = { text -> if (generation == voiceGeneration) voiceState = voiceState?.copy(partial = text) },

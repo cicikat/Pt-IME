@@ -61,7 +61,7 @@ internal fun GeneralSettingsScreen(
             val granted = androidx.compose.ui.platform.LocalContext.current.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
             Card(modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (granted) "录音权限：已允许" else "录音权限：未允许", style = MaterialTheme.typography.titleMedium)
-                Text("长按空格使用系统语音识别，可能需要联网；尚未内置离线模型。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("长按空格使用中英双语离线识别。首次打开需加载模型，看到麦克风开启后再说话；说完点完成。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedButton(onClick = onOpenAudioSettings) { Text("打开录音权限设置") }
             }}
         }

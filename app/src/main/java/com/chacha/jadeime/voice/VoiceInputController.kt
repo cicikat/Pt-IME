@@ -1,36 +1,20 @@
-﻿package com.chacha.jadeime.voice
+package com.chacha.jadeime.voice
 
 import android.content.Context
-import android.content.Intent
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import java.util.Locale
 
+/** Lifecycle adapter for the bundled bilingual recognizer. */
 class VoiceInputController(private val context: Context) {
-    private var recognizer: SpeechRecognizer? = null
-    fun start(locale: Locale, listener: (String) -> Unit, error: (Int) -> Unit, partial: (String) -> Unit = {}, ready: () -> Unit = {}, rms: (Float) -> Unit = {}, ended: () -> Unit = {}) {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) { error(0); return }
-        recognizer?.destroy()
-        val instance = SpeechRecognizer.createSpeechRecognizer(context)
-        recognizer = instance
-        instance.apply {
-            setRecognitionListener(object : RecognitionListener {
-                override fun onResults(results: android.os.Bundle) { results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(listener) ?: error(SpeechRecognizer.ERROR_NO_MATCH) }
-                override fun onError(code: Int) { error(code) }
-                override fun onReadyForSpeech(p: android.os.Bundle?) { ready() } override fun onBeginningOfSpeech() {}
-                override fun onRmsChanged(v: Float) { rms(v) } override fun onBufferReceived(b: ByteArray?) {}
-                override fun onEndOfSpeech() { ended() } override fun onPartialResults(b: android.os.Bundle?) { b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(partial) }
-                override fun onEvent(t: Int, b: android.os.Bundle?) {}
-            })
-            startListening(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag())
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            })
+    private var local: LocalVoiceInput? = null
+    @Suppress("UNUSED_PARAMETER") // The bilingual model handles both keyboard languages.
+    fun start(locale: Locale, listener: (String) -> Unit, error: (Int) -> Unit,
+              partial: (String) -> Unit = {}, ready: () -> Unit = {},
+              rms: (Float) -> Unit = {}, ended: () -> Unit = {}) {
+        destroy()
+        local = LocalVoiceInput(context.applicationContext).also {
+            it.start(listener, error, partial, ready, rms, ended)
         }
     }
-    fun stop() { recognizer?.stopListening() }
-    fun destroy() { recognizer?.destroy(); recognizer = null }
+    fun stop() { local?.stop() }
+    fun destroy() { local?.destroy(); local = null }
 }
-

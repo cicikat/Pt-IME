@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <instrumentation android:name="com.chacha.jadeime.voice.OfflineVoiceSmokeTest"
+        android:targetPackage="com.chacha.jadeime" android:functionalTest="true" />
+</manifest>

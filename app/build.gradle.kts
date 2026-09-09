@@ -6,6 +6,16 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val verifyVoiceAssets by tasks.registering {
+    doLast {
+        val root = rootProject.file("tools/.cache/voice/runtime")
+        val required = listOf("sherpa-onnx.aar", "assets/asr/encoder-epoch-99-avg-1.int8.onnx",
+            "assets/asr/decoder-epoch-99-avg-1.int8.onnx", "assets/asr/joiner-epoch-99-avg-1.int8.onnx", "assets/asr/tokens.txt")
+        check(required.all { root.resolve(it).isFile }) { "Run python tools/prepare_voice.py before building (bundled offline ASR assets missing)." }
+    }
+}
+tasks.named("preBuild").configure { dependsOn(verifyVoiceAssets) }
+
 android {
     namespace = "com.chacha.jadeime"
     compileSdk = 35
@@ -46,6 +56,9 @@ android {
         buildConfig = false
     }
 
+    sourceSets["main"].assets.srcDir(rootProject.file("tools/.cache/voice/runtime/assets"))
+    androidResources { noCompress += "onnx" }
+
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
@@ -57,6 +70,7 @@ android {
 }
 
 dependencies {
+    implementation(files(rootProject.file("tools/.cache/voice/runtime/sherpa-onnx.aar")))
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.activity:activity-compose:1.10.0")
