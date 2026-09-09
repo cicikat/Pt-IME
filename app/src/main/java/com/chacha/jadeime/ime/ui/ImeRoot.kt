@@ -232,18 +232,20 @@ internal fun ImeRoot(
     val keyboardHeight = (268f * theme.keyboardHeightScale.coerceIn(0.85f, 1.25f)).dp
     // PLAN M5 "布局也 JSON 化": filesDir/layouts/*.json overrides the built-in rows
     // when present; layoutRepository null (e.g. @Preview) just means "always default".
-    val defaultRows = when (page) {
-        KeyboardPage.Letters -> KeyboardLayouts.letters
-        KeyboardPage.Numeric -> KeyboardLayouts.numeric
-        KeyboardPage.Symbols -> KeyboardLayouts.symbols
+    // produceState retains its previous value when a key changes. A single state
+    // keyed by page would therefore draw the old page's keys for one frame.
+    // Keep each layout in its own slot and select synchronously during composition.
+    val letterRows by produceState(KeyboardLayouts.letters, layoutRepository) {
+        value = withContext(Dispatchers.IO) { layoutRepository?.loadLetters() ?: KeyboardLayouts.letters }
     }
-    val rows by produceState(defaultRows, page, layoutRepository) {
-        value = defaultRows
-        value = withContext(Dispatchers.IO) { when (page) {
-            KeyboardPage.Letters -> layoutRepository?.loadLetters() ?: KeyboardLayouts.letters
-            KeyboardPage.Numeric -> layoutRepository?.loadNumeric() ?: KeyboardLayouts.numeric
-            KeyboardPage.Symbols -> layoutRepository?.loadSymbols() ?: KeyboardLayouts.symbols
-        } }
+    val numericRows by produceState(KeyboardLayouts.numeric, layoutRepository) {
+        value = withContext(Dispatchers.IO) { layoutRepository?.loadNumeric() ?: KeyboardLayouts.numeric }
+    }
+    val rows = when (page) {
+        KeyboardPage.Letters -> letterRows
+        KeyboardPage.Numeric -> numericRows
+        // The symbol page is rendered by SymbolsPanel, not these legacy key rows.
+        KeyboardPage.Symbols -> emptyList()
     }
 
     // Pinyin never leaves the keyboard's own UI anymore (PLAN M1.6 "composing 拼音移入键盘内") --
