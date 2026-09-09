@@ -14,6 +14,7 @@ import android.view.inputmethod.EditorInfo.IME_MASK_ACTION
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
+import android.app.KeyguardManager
 import com.chacha.jadeime.voice.VoiceInputController
 import java.util.Locale
 import androidx.compose.ui.platform.ComposeView
@@ -159,14 +160,15 @@ class JadeImeService : InputMethodService() {
         }
         voice?.destroy()
         voice = VoiceInputController(this).also { c ->
-            val locale = if (mode == com.chacha.jadeime.ime.ui.InputMode.English) Locale.US else Locale.SIMPLIFIED_CHINESE
+            val locale = com.chacha.jadeime.voice.VoiceLocaleResolver.resolve(mode)
             c.start(locale, { text -> commitText(text); ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "voice"); voice?.destroy(); voice = null }) { Toast.makeText(this, "语音识别失败", Toast.LENGTH_SHORT).show(); voice?.destroy(); voice = null }
         }
     }
 
     private fun commitText(text: String) {
         currentInputConnection?.commitText(text, 1)
-        if (!currentInputEditorInfo.isSensitiveField() && text.isNotEmpty()) {
+        val keyguard = getSystemService(KeyguardManager::class.java)
+        if (currentInputConnection != null && !keyguard.isKeyguardLocked && !currentInputEditorInfo.isSensitiveField() && text.isNotEmpty()) {
             ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "keyboard")
         }
     }
