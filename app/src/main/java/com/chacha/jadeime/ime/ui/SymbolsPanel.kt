@@ -37,14 +37,18 @@ internal object SymbolCatalog {
 @Composable
 internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
     var selected by rememberSaveable { mutableIntStateOf(0) }
+    var recent by rememberSaveable { mutableStateOf(listOf<String>()) }
+    val categories = remember(recent) {
+        listOf(SymbolCategory("最近", recent)) + SymbolCatalog.categories.drop(1)
+    }
     Column(modifier.fillMaxWidth()) {
         LazyRow(Modifier.fillMaxWidth().height(36.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(horizontal = 6.dp)) {
-            items(SymbolCatalog.categories.size) { i ->
-                Box(Modifier.background(if (i == selected) theme.keyActive else Color.Transparent, RoundedCornerShape(14.dp)).pointerInput(i) { detectTapGestures { selected = i } }.padding(horizontal = 12.dp, vertical = 7.dp)) { Text(SymbolCatalog.categories[i].label, color = theme.text, fontSize = 13.sp) }
+            items(categories.size) { i ->
+                Box(Modifier.background(if (i == selected) theme.keyActive else Color.Transparent, RoundedCornerShape(14.dp)).pointerInput(i) { detectTapGestures { selected = i } }.padding(horizontal = 12.dp, vertical = 7.dp)) { Text(categories[i].label, color = theme.text, fontSize = 13.sp) }
             }
         }
         LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            items(SymbolCatalog.categories[selected].values) { value -> Box(Modifier.fillMaxWidth().height(38.dp).pointerInput(value) { detectTapGestures { onPick(value) } }, contentAlignment = Alignment.Center) { Text(value, color = theme.text, fontSize = 20.sp) } }
+            items(categories[selected].values) { value -> Box(Modifier.fillMaxWidth().height(38.dp).pointerInput(value) { detectTapGestures { recent = (listOf(value) + recent.filter { it != value }).take(30); onPick(value) } }, contentAlignment = Alignment.Center) { Text(value, color = theme.text, fontSize = 20.sp) } }
         }
     }
 }

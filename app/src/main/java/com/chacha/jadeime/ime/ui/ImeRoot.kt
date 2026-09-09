@@ -160,6 +160,8 @@ internal fun ImeRoot(
     var pageBeforeSymbols by rememberSaveable { mutableStateOf(initialPage) }
     var shift by rememberSaveable { mutableStateOf(ShiftState.Off) }
     var mode by rememberSaveable { mutableStateOf(initialMode) }
+    var chineseDoubleOpen by rememberSaveable { mutableStateOf(true) }
+    var chineseSingleOpen by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(fieldGeneration) {
         when (fieldConstraint) {
             FieldConstraint.ForceEnglish -> mode = InputMode.English
@@ -375,7 +377,7 @@ internal fun ImeRoot(
 
     fun toggleSymbolsPage() {
         if (page == KeyboardPage.Symbols) {
-            page = pageBeforeSymbols
+            page = KeyboardPage.Letters
         } else {
             pageBeforeSymbols = page
             page = KeyboardPage.Symbols
@@ -505,7 +507,15 @@ internal fun ImeRoot(
                                         KeyAction.Text -> {
                                             val raw = requireNotNull(key.value)
                                             when {
-                                                    mode == InputMode.Chinese &&
+                                                mode == InputMode.Chinese && key.corner == "“" -> {
+                                                    onCommitText(if (chineseDoubleOpen) "“" else "”")
+                                                    chineseDoubleOpen = !chineseDoubleOpen
+                                                }
+                                                mode == InputMode.Chinese && key.corner == "‘" -> {
+                                                    onCommitText(if (chineseSingleOpen) "‘" else "’")
+                                                    chineseSingleOpen = !chineseSingleOpen
+                                                }
+                                                mode == InputMode.Chinese &&
                                                     page == KeyboardPage.Letters &&
                                                     raw.all(Char::isLetter) -> {
                                                     insertIntoComposing(raw)
@@ -587,7 +597,11 @@ internal fun ImeRoot(
                                             if (mode == InputMode.Chinese && composingPinyin.isNotEmpty()) {
                                                 insertIntoComposing(PINYIN_SEPARATOR.toString())
                                             } else {
-                                                onCommitText("'")
+                                                if (mode == InputMode.Chinese) {
+                                                    val text = if (chineseSingleOpen) "‘" else "’"
+                                                    chineseSingleOpen = !chineseSingleOpen
+                                                    onCommitText(text)
+                                                } else onCommitText("'")
                                             }
                                         }
                                         KeyAction.Spacer -> Unit
