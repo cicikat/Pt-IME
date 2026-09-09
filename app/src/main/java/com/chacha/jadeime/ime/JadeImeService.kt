@@ -161,7 +161,7 @@ class JadeImeService : InputMethodService() {
         voice?.destroy()
         voice = VoiceInputController(this).also { c ->
             val locale = com.chacha.jadeime.voice.VoiceLocaleResolver.resolve(mode)
-            c.start(locale, { text -> commitText(text); ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "voice"); voice?.destroy(); voice = null }) { Toast.makeText(this, "语音识别失败", Toast.LENGTH_SHORT).show(); voice?.destroy(); voice = null }
+            c.start(locale, { text -> commitText(text); ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "voice"); voice?.destroy(); voice = null }, { Toast.makeText(this, "语音识别失败", Toast.LENGTH_SHORT).show(); voice?.destroy(); voice = null })
         }
     }
 
