@@ -14,6 +14,8 @@ import android.view.inputmethod.EditorInfo.IME_MASK_ACTION
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Toast
+import com.chacha.jadeime.voice.VoiceInputController
+import java.util.Locale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.runtime.collectAsState
@@ -30,6 +32,7 @@ import com.chacha.jadeime.settings.SettingsPage
 
 /** Android entry point for the JadeBoard input method. */
 class JadeImeService : InputMethodService() {
+    private var voice: VoiceInputController? = null
     private var viewTreeOwners: ImeViewTreeOwners? = null
     private var enterLabel by mutableStateOf("↵")
     private var fieldConstraint by mutableStateOf(FieldConstraint.None)
@@ -107,7 +110,7 @@ class JadeImeService : InputMethodService() {
                     // Theme and general settings have distinct entry points so the
                     // toolbar reaches the skin picker directly instead of a mixed page.
                     onOpenSkins = ::openThemeSettings,
-                    onOpenMic = { showComingSoon("语音输入", "M4") },
+                    onOpenMic = ::startVoice,
                     onOpenSettings = ::openSettings,
                     onCollapseKeyboard = { requestHideSelf(0) },
                     emojiRepository = ServiceLocator.emojiRepository,
@@ -140,10 +143,20 @@ class JadeImeService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        voice?.destroy()
         clipboardManager.removePrimaryClipChangedListener(clipboardListener)
         viewTreeOwners?.destroy()
         viewTreeOwners = null
         super.onDestroy()
+    }
+
+    private fun startVoice() {
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "请先允许录音权限", Toast.LENGTH_SHORT).show(); return
+        }
+        voice = VoiceInputController(this).also { c ->
+            c.start(Locale.SIMPLIFIED_CHINESE, { text -> commitText(text); ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "voice") }) { Toast.makeText(this, "语音识别失败", Toast.LENGTH_SHORT).show() }
+        }
     }
 
     private fun commitText(text: String) {
