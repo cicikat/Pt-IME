@@ -19,6 +19,7 @@ fun SettingsRoot(
     themeImportTick: Int,
     onToggleDarkMode: () -> Unit,
     onOpenTheme: () -> Unit,
+    onOpenRecent: () -> Unit,
     onBackToGeneral: () -> Unit,
     onOpenImeSettings: () -> Unit,
     onShowPicker: () -> Unit,
@@ -37,7 +38,9 @@ fun SettingsRoot(
                     onOpenImeSettings = onOpenImeSettings,
                     onShowPicker = onShowPicker,
                     onOpenAudioSettings = onOpenAudioSettings,
+                    onOpenRecent = onOpenRecent,
                 )
+                SettingsPage.Recent -> RecentDraftScreen(onBack = onBackToGeneral)
                 SettingsPage.Theme -> ThemeSettingsScreen(
                     darkMode = darkMode,
                     importTick = themeImportTick,

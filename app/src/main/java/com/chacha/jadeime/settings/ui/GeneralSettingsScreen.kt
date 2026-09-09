@@ -39,6 +39,7 @@ internal fun GeneralSettingsScreen(
     darkMode: Boolean,
     onToggleDarkMode: () -> Unit,
     onOpenTheme: () -> Unit,
+    onOpenRecent: () -> Unit,
     onOpenImeSettings: () -> Unit,
     onShowPicker: () -> Unit,
     onOpenAudioSettings: () -> Unit,
@@ -65,6 +66,7 @@ internal fun GeneralSettingsScreen(
             }}
         }
         item { SettingsNavigationCard(onOpenTheme) }
+        item { OutlinedButton(onClick = onOpenRecent, modifier = Modifier.fillMaxWidth()) { Text("最近输入（3小时）") } }
         item { CustomPhraseSection() }
         item { EmojiMappingSection() }
     }

@@ -51,6 +51,7 @@ class SettingsActivity : ComponentActivity() {
                 themeImportTick = themeImportTick,
                 onToggleDarkMode = appearanceRepository::toggle,
                 onOpenTheme = { page = SettingsPage.Theme },
+                onOpenRecent = { page = SettingsPage.Recent },
                 onBackToGeneral = { page = SettingsPage.General },
                 onOpenImeSettings = ::openImeSettings,
                 onShowPicker = ::showInputMethodPicker,
@@ -96,6 +97,7 @@ class SettingsActivity : ComponentActivity() {
 
 enum class SettingsPage {
     General,
+    Recent,
     Theme;
 
     companion object {
