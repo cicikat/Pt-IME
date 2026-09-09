@@ -16,6 +16,7 @@ class DraftSyncRepository(context: Context) {
     var enabled: Boolean get() = prefs.getBoolean("enabled", false); set(v) { prefs.edit().putBoolean("enabled", v).apply() }
     var endpoint: String get() = prefs.getString("endpoint", "") ?: ""; set(v) { prefs.edit().putString("endpoint", v.trim()).apply() }
     var token: String get() = prefs.getString("token", "") ?: ""; set(v) { prefs.edit().putString("token", v).apply() }
+    var intervalMinutes: Int get() = prefs.getInt("interval_minutes", 15); set(v) { prefs.edit().putInt("interval_minutes", v.coerceIn(1, 1440)).apply() }
     private var lastId: Long get() = prefs.getLong("last_id", 0); set(v) { prefs.edit().putLong("last_id", v).apply() }
     suspend fun sync(): Boolean {
         if (!enabled || token.isBlank() || !endpoint.startsWith("https://", ignoreCase = true)) return false

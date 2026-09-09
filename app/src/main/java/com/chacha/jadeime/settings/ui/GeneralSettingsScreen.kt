@@ -79,12 +79,14 @@ private fun DraftSyncSection() {
     var enabled by remember { mutableStateOf(repo.enabled) }
     var endpoint by remember { mutableStateOf(repo.endpoint) }
     var token by remember { mutableStateOf(repo.token) }
+    var interval by remember { mutableStateOf(repo.intervalMinutes.toString()) }
     Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("内网增量回传", style = MaterialTheme.typography.titleMedium)
         Text("默认关闭，仅发送已脱敏的三小时记录；地址必须使用 HTTPS。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         androidx.compose.material3.Switch(checked = enabled, onCheckedChange = { enabled = it; repo.enabled = it })
         OutlinedTextField(endpoint, { endpoint = it; repo.endpoint = it }, Modifier.fillMaxWidth(), label = { Text("HTTPS 地址") }, singleLine = true)
         OutlinedTextField(token, { token = it; repo.token = it }, Modifier.fillMaxWidth(), label = { Text("配对密钥") }, singleLine = true)
+        OutlinedTextField(interval, { value -> interval = value.filter(Char::isDigit); value.toIntOrNull()?.let { repo.intervalMinutes = it } }, Modifier.fillMaxWidth(), label = { Text("发送间隔（分钟）") }, singleLine = true)
     }}
 }
 
