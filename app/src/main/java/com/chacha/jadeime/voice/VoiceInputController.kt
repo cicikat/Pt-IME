@@ -14,8 +14,8 @@ class VoiceInputController(private val context: Context) {
         recognizer?.destroy()
         recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
             setRecognitionListener(object : RecognitionListener {
-                override fun onResults(results: android.os.Bundle) { results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(listener) }
-                override fun onError(code: Int) { error(code) }
+                override fun onResults(results: android.os.Bundle) { results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(listener) ?: error(SpeechRecognizer.ERROR_NO_MATCH) }
+                override fun onError(code: Int) { error(code); destroy() }
                 override fun onReadyForSpeech(p: android.os.Bundle?) {} override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(v: Float) {} override fun onBufferReceived(b: ByteArray?) {}
                 override fun onEndOfSpeech() {} override fun onPartialResults(b: android.os.Bundle?) {}

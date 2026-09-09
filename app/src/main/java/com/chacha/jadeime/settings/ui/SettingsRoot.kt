@@ -22,6 +22,7 @@ fun SettingsRoot(
     onBackToGeneral: () -> Unit,
     onOpenImeSettings: () -> Unit,
     onShowPicker: () -> Unit,
+    onOpenAudioSettings: () -> Unit,
     onImportTheme: () -> Unit,
 ) {
     BackHandler(enabled = page == SettingsPage.Theme, onBack = onBackToGeneral)
@@ -35,6 +36,7 @@ fun SettingsRoot(
                     onOpenTheme = onOpenTheme,
                     onOpenImeSettings = onOpenImeSettings,
                     onShowPicker = onShowPicker,
+                    onOpenAudioSettings = onOpenAudioSettings,
                 )
                 SettingsPage.Theme -> ThemeSettingsScreen(
                     darkMode = darkMode,

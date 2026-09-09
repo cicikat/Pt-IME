@@ -150,12 +150,14 @@ class JadeImeService : InputMethodService() {
         super.onDestroy()
     }
 
-    private fun startVoice() {
+    private fun startVoice(mode: com.chacha.jadeime.ime.ui.InputMode) {
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "请先允许录音权限", Toast.LENGTH_SHORT).show(); return
         }
+        voice?.destroy()
         voice = VoiceInputController(this).also { c ->
-            c.start(Locale.SIMPLIFIED_CHINESE, { text -> commitText(text); ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "voice") }) { Toast.makeText(this, "语音识别失败", Toast.LENGTH_SHORT).show() }
+            val locale = if (mode == com.chacha.jadeime.ime.ui.InputMode.English) Locale.US else Locale.SIMPLIFIED_CHINESE
+            c.start(locale, { text -> commitText(text); ServiceLocator.recordDraft(text, currentInputEditorInfo.packageName.orEmpty(), "voice"); voice?.destroy(); voice = null }) { Toast.makeText(this, "语音识别失败", Toast.LENGTH_SHORT).show(); voice?.destroy(); voice = null }
         }
     }
 

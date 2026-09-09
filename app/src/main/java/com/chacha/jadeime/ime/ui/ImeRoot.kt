@@ -133,7 +133,7 @@ internal fun ImeRoot(
     // the *app's* text cursor underneath it would be a confusing pairing.
     onMoveCursor: (Int) -> Unit,
     onOpenSkins: () -> Unit,
-    onOpenMic: () -> Unit,
+    onOpenMic: (InputMode) -> Unit,
     onOpenSettings: () -> Unit,
     onCollapseKeyboard: () -> Unit,
     // M2's emoji/kaomoji/phrase panel lives entirely inside ImeRoot (unlike the M5/M4
@@ -623,7 +623,7 @@ internal fun ImeRoot(
                                 // Voice entry has no dedicated key anymore -- long-pressing
                                 // space opens it instead (PLAN M1.7 "语音入口改为长按空格",
                                 // still a Toast stub until M4 wires real dictation).
-                                onSpaceLongPress = if (key.action == KeyAction.Space) onOpenMic else null,
+                                onSpaceLongPress = if (key.action == KeyAction.Space) ({ onOpenMic(mode) }) else null,
                                 onMoveCursor = if (
                                     key.action == KeyAction.Space &&
                                     !(mode == InputMode.Chinese && composingPinyin.isNotEmpty())
@@ -1209,7 +1209,7 @@ private fun ImeRootPreviewChineseLight() {
         onDeleteBackward = ::previewNoOp,
         onEnter = ::previewNoOp,
         onOpenSkins = ::previewNoOp,
-        onOpenMic = ::previewNoOp,
+        onOpenMic = { _ -> previewNoOp() },
         onOpenSettings = ::previewNoOp,
         onCollapseKeyboard = ::previewNoOp,
     )
@@ -1231,7 +1231,7 @@ private fun ImeRootPreviewChineseDark() {
         onDeleteBackward = ::previewNoOp,
         onEnter = ::previewNoOp,
         onOpenSkins = ::previewNoOp,
-        onOpenMic = ::previewNoOp,
+        onOpenMic = { _ -> previewNoOp() },
         onOpenSettings = ::previewNoOp,
         onCollapseKeyboard = ::previewNoOp,
     )
@@ -1248,7 +1248,7 @@ private fun ImeRootPreviewEnglish() {
         onDeleteBackward = ::previewNoOp,
         onEnter = ::previewNoOp,
         onOpenSkins = ::previewNoOp,
-        onOpenMic = ::previewNoOp,
+        onOpenMic = { _ -> previewNoOp() },
         onOpenSettings = ::previewNoOp,
         onCollapseKeyboard = ::previewNoOp,
         initialMode = InputMode.English,
@@ -1266,7 +1266,7 @@ private fun ImeRootPreviewSymbols() {
         onDeleteBackward = ::previewNoOp,
         onEnter = ::previewNoOp,
         onOpenSkins = ::previewNoOp,
-        onOpenMic = ::previewNoOp,
+        onOpenMic = { _ -> previewNoOp() },
         onOpenSettings = ::previewNoOp,
         onCollapseKeyboard = ::previewNoOp,
         initialPage = KeyboardPage.Symbols,

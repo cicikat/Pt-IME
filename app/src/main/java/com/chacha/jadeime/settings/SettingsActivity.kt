@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.content.pm.PackageManager
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -54,6 +55,7 @@ class SettingsActivity : ComponentActivity() {
                 onOpenImeSettings = ::openImeSettings,
                 onShowPicker = ::showInputMethodPicker,
                 onImportTheme = { importThemeLauncher.launch("*/*") },
+                onOpenAudioSettings = ::openAudioSettings,
             )
         }
     }
@@ -66,6 +68,7 @@ class SettingsActivity : ComponentActivity() {
     private fun openImeSettings() = startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
 
     private fun showInputMethodPicker() = inputMethodManager().showInputMethodPicker()
+    private fun openAudioSettings() = startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
 
     private fun isJadeBoardEnabled(): Boolean =
         inputMethodManager().enabledInputMethodList.any { it.packageName == packageName }

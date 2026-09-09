@@ -1,5 +1,6 @@
 package com.chacha.jadeime.settings.ui
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +41,7 @@ internal fun GeneralSettingsScreen(
     onOpenTheme: () -> Unit,
     onOpenImeSettings: () -> Unit,
     onShowPicker: () -> Unit,
+    onOpenAudioSettings: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -54,6 +56,14 @@ internal fun GeneralSettingsScreen(
             )
         }
         item { ImeStatusSection(imeEnabled, onOpenImeSettings, onShowPicker) }
+        item {
+            val granted = androidx.compose.ui.platform.LocalContext.current.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            Card(modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(if (granted) "录音权限：已允许" else "录音权限：未允许", style = MaterialTheme.typography.titleMedium)
+                Text("长按空格使用语音输入。拒绝权限不影响普通空格输入。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedButton(onClick = onOpenAudioSettings) { Text("打开录音权限设置") }
+            }}
+        }
         item { SettingsNavigationCard(onOpenTheme) }
         item { CustomPhraseSection() }
         item { EmojiMappingSection() }
