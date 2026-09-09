@@ -155,6 +155,9 @@ class JadeImeService : InputMethodService() {
     }
 
     private fun startVoice(mode: com.chacha.jadeime.ime.ui.InputMode) {
+        if (currentInputConnection == null || getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
+            Toast.makeText(this, "当前输入框不可用", Toast.LENGTH_SHORT).show(); return
+        }
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "请先允许录音权限", Toast.LENGTH_SHORT).show(); return
         }
