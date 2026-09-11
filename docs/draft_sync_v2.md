@@ -81,3 +81,8 @@ final 只有在成功提交到非敏感输入框时才记录一次，和同 App 
 - [ ] 真机：同 App 连发两条只出现一条草稿，停五分钟/换输入 App 后新起一条；键盘与语音混合不重复，复制长条正常。
 - [ ] 真机：长按空格立即显示面板，权限不足可见提示；授权后实际说话，检查音量、识别、取消及切换输入框无串字。
 - [ ] 真机数据库升级及电脑端对接：验证旧草稿保留、同 ID 的高版本覆盖、断网重试不重复。
+
+
+### Tailscale pairing (2026-09-11)
+
+HTTPS private-network sync also permits the 100.64.0.0/10 shared address range used by Tailscale. Both devices must connect to the same tailnet. Configure the complete HTTPS receiver endpoint and a dedicated pairing token. System certificate validation, no proxy, no redirects and explicit opt-in remain required.

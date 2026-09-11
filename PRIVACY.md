@@ -29,3 +29,8 @@
 只分享 APK 不会包含应用私有数据库、配置、密钥。公开 Release 不可调试，禁用应用备份/设备迁移。分享配置或应用数据备份不同于分享 APK，请勿共享密钥。
 
 早期 Debug 和官方 Release 签名不同，不能直接覆盖。卸载清除私有数据；目前不提供全量迁移工具，请自行保存所需内容。
+
+
+### Tailscale pairing (2026-09-11)
+
+HTTPS private-network sync also permits the 100.64.0.0/10 shared address range used by Tailscale. Both devices must connect to the same tailnet. Configure the complete HTTPS receiver endpoint and a dedicated pairing token. System certificate validation, no proxy, no redirects and explicit opt-in remain required.
