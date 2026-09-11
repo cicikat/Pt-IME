@@ -24,6 +24,43 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chacha.jadeime.theme.JadeTheme
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+
+@Composable
+internal fun BackArrow() {
+    val color = MaterialTheme.colorScheme.onSurface
+    Canvas(Modifier.size(24.dp).semantics { contentDescription = "返回" }) {
+        val stroke = 2.dp.toPx()
+        drawLine(color, Offset(size.width * .8f, size.height / 2), Offset(size.width * .2f, size.height / 2), stroke)
+        drawLine(color, Offset(size.width * .2f, size.height / 2), Offset(size.width * .48f, size.height * .22f), stroke)
+        drawLine(color, Offset(size.width * .2f, size.height / 2), Offset(size.width * .48f, size.height * .78f), stroke)
+    }
+}
+
+@Composable
+internal fun SettingsLink(title: String, subtitle: String, onClick: () -> Unit) {
+    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("›", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+internal fun SettingToggle(title: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        androidx.compose.material3.Switch(checked, onChange, enabled = enabled)
+    }
+}
 
 @Composable
 internal fun SettingsPageHeader(

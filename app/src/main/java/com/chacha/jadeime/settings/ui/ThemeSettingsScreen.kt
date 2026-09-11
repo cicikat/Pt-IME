@@ -44,18 +44,9 @@ internal fun ThemeSettingsScreen(
     LaunchedEffect(importTick) { themes = repository.listThemes() }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        item {
-            SettingsPageHeader(
-                title = "主题与皮肤",
-                description = "键盘皮肤立即生效；此页面的日夜外观单独保存。",
-                darkMode = darkMode,
-                onToggleDarkMode = onToggleDarkMode,
-                onBack = onBack,
-            )
-        }
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp)) {

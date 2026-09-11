@@ -40,7 +40,7 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ServiceLocator.init(applicationContext)
         packageRepository = ThemePackageRepository(applicationContext)
-        page = SettingsPage.fromIntent(intent)
+        page = savedInstanceState?.getString("page")?.let { value -> SettingsPage.entries.find { it.name == value } } ?: SettingsPage.fromIntent(intent)
         appearanceRepository = SettingsAppearanceRepository(applicationContext)
         setContent {
             val darkMode by appearanceRepository.darkMode.collectAsState()
@@ -50,9 +50,8 @@ class SettingsActivity : ComponentActivity() {
                 darkMode = darkMode,
                 themeImportTick = themeImportTick,
                 onToggleDarkMode = appearanceRepository::toggle,
-                onOpenTheme = { page = SettingsPage.Theme },
-                onOpenRecent = { page = SettingsPage.Recent },
-                onBackToGeneral = { page = SettingsPage.General },
+                onNavigate = { page = it },
+                onBack = { if (page == SettingsPage.General) finish() else page = SettingsPage.General },
                 onOpenImeSettings = ::openImeSettings,
                 onShowPicker = ::showInputMethodPicker,
                 onImportTheme = { importThemeLauncher.launch("*/*") },
@@ -64,6 +63,17 @@ class SettingsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         imeEnabled = isJadeBoardEnabled()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("page", page.name)
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        page = SettingsPage.fromIntent(intent)
     }
 
     private fun openImeSettings() = startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
@@ -95,10 +105,13 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
-enum class SettingsPage {
-    General,
-    Recent,
-    Theme;
+enum class SettingsPage(val title: String) {
+    General("Pt JadeBoard"),
+    Recent("最近输入"),
+    Theme("主题与皮肤"),
+    Sync("数据回传"),
+    Phrases("常用短语"),
+    Emoji("Emoji 快捷词");
 
     companion object {
         fun fromIntent(intent: Intent?): SettingsPage = SettingsActivity.pageFromIntent(intent)

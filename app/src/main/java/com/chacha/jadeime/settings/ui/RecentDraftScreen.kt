@@ -25,8 +25,8 @@ internal fun RecentDraftScreen(onBack: () -> Unit) {
         uploadStates = ServiceLocator.draftSyncRepository.uploadStates(rows)
     }
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("最近输入（3小时）", style = MaterialTheme.typography.titleLarge); Row { TextButton(onClick = { scope.launch { ServiceLocator.clearDrafts(); rows = emptyList() } }) { Text("全部清除") }; TextButton(onClick = onBack) { Text("返回") } } }
-        Text("每条从最后追加起滚动保留3小时。上传状态对应当前配置的接收端；追加内容后会重新变为待上传。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("保留最近三小时", style = MaterialTheme.typography.bodyMedium); TextButton(onClick = { scope.launch { ServiceLocator.clearDrafts(); rows = emptyList() } }) { Text("全部清除") } }
+        if (rows.isEmpty()) Text("暂无草稿", color = MaterialTheme.colorScheme.onSurfaceVariant)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(rows, key = { it.id }) { row -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
                 Text(row.content)
