@@ -20,6 +20,7 @@ internal fun DraftSyncSection() {
     var token by remember { mutableStateOf(repo.token) }
     var interval by rememberSaveable { mutableStateOf(repo.intervalMinutes.toString()) }
     var remote by rememberSaveable { mutableStateOf(repo.allowRemote) }
+    var realtime by remember { mutableStateOf(repo.realtime) }
     var enabled by remember { mutableStateOf(repo.enabled) }
     var recording by remember { mutableStateOf(ServiceLocator.draftPrivacy.enabled) }
     var busy by remember { mutableStateOf(false) }
@@ -30,7 +31,7 @@ internal fun DraftSyncSection() {
     fun changed() { saved = false; result = null }
     if (confirm) AlertDialog(
         onDismissRequest = { confirm = false }, title = { Text("开启自动回传？") },
-        text = { Text("将最近三小时的输入草稿发送至已保存的地址。数字替换为 *，其他文字、来源 App 和时间会保留。") },
+        text = { Text("将最近三小时的输入草稿发送至已保存的地址。数字替换为 *，其他文字、来源 App、时间及删除/恢复记录会保留。") },
         confirmButton = { TextButton(onClick = { repo.enabled = true; enabled = true; confirm = false }) { Text("开启") } },
         dismissButton = { TextButton(onClick = { confirm = false }) { Text("取消") } },
     )
@@ -45,6 +46,8 @@ internal fun DraftSyncSection() {
             Text("接收端", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(endpoint, { endpoint = it; changed() }, Modifier.fillMaxWidth(), enabled = !busy, label = { Text("接口地址") }, placeholder = { Text("http://192.168.1.2:8000/v1/ime/drafts") }, singleLine = true)
             OutlinedTextField(token, { token = it; changed() }, Modifier.fillMaxWidth(), enabled = !busy, label = { Text("配对密钥 / Token") }, singleLine = true, visualTransformation = PasswordVisualTransformation())
+            SettingToggle("及时回传（供角色感知）", realtime, !busy) { realtime = it; repo.realtime = it }
+            Text("及时模式：停笔约 5 秒回传，持续输入最多约 15 秒一批；失败后 60 秒重试。关闭后使用下方分钟间隔。退格、清空、恢复单独记录，不代表消息已发送。", style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(interval, { interval = it.filter(Char::isDigit); changed() }, Modifier.fillMaxWidth(), enabled = !busy, label = { Text("回传间隔（分钟）") }, singleLine = true)
             SettingToggle("允许公网地址（内网穿透）", remote, !busy) { remote = it; changed() }
             if (endpoint.trim().startsWith("http://", true)) Text("HTTP 不加密，地址链路上的人可能读取密钥和草稿。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)

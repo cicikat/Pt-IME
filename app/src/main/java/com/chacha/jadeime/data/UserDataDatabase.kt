@@ -80,6 +80,7 @@ data class DraftEntryRow(
     val content: String,
     @ColumnInfo(name = "updated_at", defaultValue = "0") val updatedAt: Long = createdAt,
     @ColumnInfo(defaultValue = "1") val revision: Long = 1,
+    @ColumnInfo(name = "edit_events", defaultValue = "'[]'") val editEvents: String = "[]",
 )
 
 @Dao
@@ -191,7 +192,7 @@ interface DraftDao {
         CandidateMemoryV2Row::class,
         DraftEntryRow::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class UserDataDatabase : RoomDatabase() {
@@ -203,7 +204,7 @@ abstract class UserDataDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): UserDataDatabase =
             Room.databaseBuilder(context, UserDataDatabase::class.java, "userdata.db")
-                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build()
 
         private val MIGRATION_3_4 = object : Migration(3, 4) {
@@ -227,6 +228,11 @@ abstract class UserDataDatabase : RoomDatabase() {
                         "`lexicon_version` TEXT NOT NULL, " +
                         "PRIMARY KEY(`key_kind`, `entry_ids`, `lexicon_version`))",
                 )
+            }
+        }
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE draft_entry ADD COLUMN edit_events TEXT NOT NULL DEFAULT '[]'")
             }
         }
         private val MIGRATION_6_7 = object : Migration(6, 7) {

@@ -40,6 +40,17 @@ class DraftSessionTest {
         assertEquals(2, repo.recent(106).size)
     }
 
+    @Test fun deletionIsAnEventNotARewriteOfHistoricalInput() = runBlocking {
+        val repo = DraftRepository(MemoryDraftDao())
+        repo.record("hello", "a", "keyboard", 1, 100)
+        repo.recordEdit("delete_backward", "o", "requested", "a", 1, 101)
+        val row = repo.recent(102).single()
+        assertEquals("hello", row.content)
+        assertEquals(2L, row.revision)
+        assertTrue(row.editEvents.contains("delete_backward"))
+        repo.recordEdit("clear", "another", "applied", "b", 2, 103)
+        assertEquals(2, repo.recent(104).size)
+    }
     @Test fun clearAndExpiryDoNotResurrectOldContent() = runBlocking {
         val repo = DraftRepository(MemoryDraftDao())
         repo.record("123", "a", "keyboard", 1, 100)

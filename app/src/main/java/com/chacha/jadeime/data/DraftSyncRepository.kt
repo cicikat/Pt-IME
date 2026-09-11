@@ -53,6 +53,7 @@ class DraftSyncRepository(context: Context) {
     var enabled: Boolean get() = prefs.getBoolean("enabled", false); set(v) { prefs.edit().putBoolean("enabled", v).apply() }
     var endpoint: String get() = prefs.getString("endpoint", "") ?: ""; set(v) { prefs.edit().putString("endpoint", v.trim()).putBoolean("enabled", false).apply() }
     var token: String get() = secret.read(); set(v) { secret.write(v); enabled = false }
+    var realtime: Boolean get() = prefs.getBoolean("realtime", true); set(v) { prefs.edit().putBoolean("realtime", v).apply() }
     var intervalMinutes: Int get() = prefs.getInt("interval_minutes", 15); set(v) { prefs.edit().putInt("interval_minutes", v.coerceIn(1, 1440)).apply() }
     var allowRemote: Boolean get() = prefs.getBoolean("allow_remote", false); set(v) { prefs.edit().putBoolean("allow_remote", v).putBoolean("enabled", false).apply() }
 
@@ -67,12 +68,19 @@ class DraftSyncRepository(context: Context) {
         }
     }
     private val mutex = Mutex()
-    private var lastAttempt = 0L
+    private val schedule = DraftSyncSchedule()
+    fun noteEdit() = schedule.edited(android.os.SystemClock.elapsedRealtime())
+    private var lastMaintenance = 0L
     suspend fun syncIfDue(): Boolean {
         val now = android.os.SystemClock.elapsedRealtime()
-        if (now - lastAttempt < intervalMinutes * 60_000L) return false
-        lastAttempt = now
-        return sync()
+        if (now - lastMaintenance >= 60_000) {
+            lastMaintenance = now
+            db.draftDao().deleteBefore(System.currentTimeMillis() - DraftRepository.THREE_HOURS_MS)
+        }
+        if (!enabled || !privacy.enabled || !schedule.due(now, realtime, intervalMinutes * 60_000L)) return false
+        val success = sync()
+        schedule.complete(now, android.os.SystemClock.elapsedRealtime(), success, realtime, intervalMinutes * 60_000L)
+        return success
     }
     suspend fun sync(): Boolean = withContext(Dispatchers.IO) { mutex.withLock {
         val target = endpoint
@@ -85,9 +93,20 @@ class DraftSyncRepository(context: Context) {
         val recent = db.draftDao().recent(System.currentTimeMillis() - DraftRepository.THREE_HOURS_MS)
         val retainedKeys = recent.map { "$prefix${it.id}" }.toSet()
         prefs.edit().apply { prefs.all.keys.filter { it.startsWith("sent_") && it !in retainedKeys }.forEach { remove(it) } }.apply()
-        val rows = recent.filter { it.revision > prefs.getLong("$prefix${it.id}", 0) }.sortedBy { it.id }
-        if (rows.isEmpty()) return@withLock true
-        val array = JSONArray().apply { rows.forEach { put(JSONObject().put("id", it.id).put("created_at", it.createdAt).put("updated_at", it.updatedAt).put("revision", it.revision).put("app_package", it.appPackage).put("source", it.source).put("content", it.content)) } }
+        val pendingRows = recent.filter { it.revision > prefs.getLong("$prefix${it.id}", 0) }.sortedBy { it.id }
+        if (pendingRows.isEmpty()) return@withLock true
+        val rows = mutableListOf<DraftEntryRow>()
+        val array = JSONArray()
+        var bytes = 2
+        for (row in pendingRows.take(2000)) {
+            val item = JSONObject().put("id", row.id).put("created_at", row.createdAt)
+                .put("updated_at", row.updatedAt).put("revision", row.revision).put("app_package", row.appPackage)
+                .put("source", row.source).put("content", row.content).put("edit_events", JSONArray(row.editEvents))
+            val size = item.toString().toByteArray(Charsets.UTF_8).size + 1
+            if (bytes + size > 3 * 1024 * 1024) break
+            rows.add(row); array.put(item); bytes += size
+        }
+        if (rows.isEmpty()) return@withLock false
         runCatching {
             val request = Request.Builder().url(target).header("Authorization", "Bearer $credential").post(array.toString().toRequestBody("application/json".toMediaType())).build()
             client(allowRemote).newCall(request).execute().use { response ->

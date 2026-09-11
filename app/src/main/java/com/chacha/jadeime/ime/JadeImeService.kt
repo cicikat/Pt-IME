@@ -114,6 +114,7 @@ class JadeImeService : InputMethodService() {
                     onCommitText = ::commitText,
                     onPasteText = { currentInputConnection?.commitText(it, 1) },
                     onDeleteBackward = ::deleteBackward,
+                    onComposingDelete = { recordDraftEdit("compose_delete", it, "applied") },
                     onDeleteLongPress = ::deleteLongPress,
                     onEnter = ::performEnter,
                     onMoveCursor = ::moveCursor,
@@ -275,7 +276,22 @@ class JadeImeService : InputMethodService() {
 
     private fun deleteBackward() {
         if (restoreSnapshotIfAvailable()) return
+        val ic = currentInputConnection ?: return
+        val text = if (canObserveDraft()) {
+            ic.getSelectedText(0)?.toString()?.take(4096)?.takeIf { it.isNotEmpty() }
+                ?: ic.getTextBeforeCursor(2, 0)?.toString().orEmpty().let { before ->
+                    if (before.isEmpty()) "" else String(Character.toChars(before.codePointBefore(before.length)))
+                }
+        } else ""
         sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+        recordDraftEdit("delete_backward", text, "requested")
+    }
+
+    private fun canObserveDraft(): Boolean = ServiceLocator.draftPrivacy.enabled &&
+        !getSystemService(KeyguardManager::class.java).isKeyguardLocked && !currentInputEditorInfo.isSensitiveField()
+
+    private fun recordDraftEdit(kind: String, text: String, outcome: String) {
+        if (canObserveDraft()) ServiceLocator.recordDraftEdit(kind, text, outcome, currentInputEditorInfo?.packageName.orEmpty())
     }
 
     private var deleteSnapshot: CharSequence? = null
@@ -287,13 +303,15 @@ class JadeImeService : InputMethodService() {
         val after = ic.getTextAfterCursor(4096, 0) ?: return
         deleteSnapshot = before.toString() + after.toString()
         deleteSnapshotCursor = before.length
-        ic.deleteSurroundingText(before.length, after.length)
+        val applied = ic.deleteSurroundingText(before.length, after.length)
+        recordDraftEdit("clear", (before.toString() + after.toString()).takeLast(4096), if (applied) "applied" else "requested")
     }
     private fun restoreSnapshotIfAvailable(): Boolean {
         val snap = deleteSnapshot ?: return false
         if (currentInputEditorInfo.isSensitiveField()) { deleteSnapshot = null; return false }
         val connection = currentInputConnection ?: return false
-        connection.commitText(snap, 1)
+        if (!connection.commitText(snap, 1)) return false
+        recordDraftEdit("restore", snap.toString().takeLast(4096), "applied")
         val cursor = deleteSnapshotCursor.coerceIn(0, snap.length)
         connection.setSelection(cursor, cursor)
         deleteSnapshot = null

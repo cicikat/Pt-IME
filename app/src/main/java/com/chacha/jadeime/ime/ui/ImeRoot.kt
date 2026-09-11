@@ -130,6 +130,7 @@ internal fun ImeRoot(
     onCommitText: (String) -> Unit,
     onPasteText: (String) -> Unit = onCommitText,
     onDeleteBackward: () -> Unit,
+    onComposingDelete: (String) -> Unit = {},
     onDeleteLongPress: () -> Unit = onDeleteBackward,
     onEnter: () -> Unit,
     // Positive = move right, negative = move left; called once per character step
@@ -593,6 +594,7 @@ internal fun ImeRoot(
                                         KeyAction.Backspace -> {
                                             if (composingPinyin.isNotEmpty()) {
                                                 if (composingCursor > 0) {
+                                                    onComposingDelete(composingPinyin.substring(composingCursor - 1, composingCursor))
                                                     updateComposing(
                                                         composingPinyin.removeRange(composingCursor - 1, composingCursor),
                                                         composingCursor - 1,

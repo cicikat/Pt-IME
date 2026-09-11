@@ -1,5 +1,16 @@
 # 三小时长条草稿与语音（2026-09-09）
 
+## 编辑事件与及时模式（2026-09-11）
+
+Room 7→8 新增 edit_events；数组最多256条，seq随草稿revision增长，at_ms为Unix毫秒。
+kind=insert/delete_backward/compose_delete/clear/restore，text为有界且数字遮蔽的窗口，outcome=requested/applied。
+普通退格仅请求，拼音退格仅组合区；不能当成消息发送或最终编辑器内容。content仍是历史输入拼接。
+后端必须先更新以接受新增字段。及时模式停笔5秒或持续15秒批传，失败60秒重试，空闲一分钟检查。
+记录和自动回传仍默认关闭；及时模式单独可关闭，关闭后按分钟间隔。每批≤3MiB，按实际上传revision确认。
+后端可另开 ime_awareness 做短期活动判断与主动候选，不能把输入草稿直接当成已发送对话。
+真机编辑器行为、断网恢复和实际通知为 observe，未用 Debug APK 覆盖正式签名安装。
+
+
 > 2026-09-11 更新：草稿记录与回传默认关闭。支持 HTTP/HTTPS，默认限制私网、回环和 Tailscale 的 100.64/10 地址；公网穿透需手动允许。HTTP 明文传输，HTTPS 保留系统证书校验；不跟随重定向。配置需点击保存；保存会关闭自动回传，重新开启要确认。密钥用 Android Keystore 加密。测试仅发送虚构记录，不读取真实草稿。
 
 本文件取代旧 `ime_draft_sync_api.md`（现移动为 `交接文档ime_draft_sync_api.md`）中的新增记录游标协议。README / DESIGN 的日报统计与离线 ASR 是早期规划，不代表当前实现。

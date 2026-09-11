@@ -84,8 +84,8 @@ object ServiceLocator {
         }
         scope.launch(Dispatchers.IO) {
             while (true) {
-                kotlinx.coroutines.delay(60_000)
-                runCatching { draftRepository.prune(); draftSyncRepository.syncIfDue() }
+                kotlinx.coroutines.delay(2_000)
+                runCatching { draftSyncRepository.syncIfDue() }
             }
         }
         scope.launch(Dispatchers.IO) {
@@ -127,7 +127,21 @@ object ServiceLocator {
         val session = draftSession.activity(appPackage, android.os.SystemClock.elapsedRealtime())
         val now = System.currentTimeMillis()
         val redacted = com.chacha.jadeime.data.DraftRedactor.redact(text)
-        draftWrites.trySend { if (draftPrivacy.enabled) draftRepository.record(redacted, appPackage, source, session, now) }
+        draftWrites.trySend { if (draftPrivacy.enabled) {
+            draftRepository.record(redacted, appPackage, source, session, now)
+            draftSyncRepository.noteEdit()
+        } }
+    }
+
+    fun recordDraftEdit(kind: String, text: String, outcome: String, appPackage: String) {
+        if (!::draftRepository.isInitialized || !draftPrivacy.enabled) return
+        val session = draftSession.activity(appPackage, android.os.SystemClock.elapsedRealtime())
+        val now = System.currentTimeMillis()
+        val redacted = com.chacha.jadeime.data.DraftRedactor.redact(text)
+        draftWrites.trySend { if (draftPrivacy.enabled) {
+            draftRepository.recordEdit(kind, redacted, outcome, appPackage, session, now)
+            draftSyncRepository.noteEdit()
+        } }
     }
 
     suspend fun clearDrafts() {

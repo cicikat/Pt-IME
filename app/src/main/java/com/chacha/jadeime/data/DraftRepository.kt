@@ -24,14 +24,32 @@ class DraftRepository internal constructor(private val dao: DraftDao) {
         val previous = activeId?.takeIf { activeSession == session }?.let { dao.find(it) }
         if (previous != null && previous.appPackage == appPackage) {
             dao.update(previous.copy(
-                content = previous.content + DraftRedactor.redact(text),
+                content = (previous.content + DraftRedactor.redact(text)).takeLast(500_000),
+                editEvents = DraftEditEvents.append(previous.editEvents, DraftEditEvent(previous.revision + 1, now, "insert", text, "applied")),
                 source = if (previous.source == source) source else "mixed",
                 updatedAt = now,
                 revision = previous.revision + 1,
             ))
         } else {
             if (text.isBlank()) return@withLock
-            activeId = dao.insert(DraftEntryRow(createdAt = now, appPackage = appPackage, source = source, content = DraftRedactor.redact(text)))
+            activeId = dao.insert(DraftEntryRow(createdAt = now, appPackage = appPackage, source = source, content = DraftRedactor.redact(text).takeLast(500_000), editEvents = DraftEditEvents.append("[]", DraftEditEvent(1, now, "insert", text, "applied"))))
+            activeSession = session
+        }
+    }
+    suspend fun recordEdit(kind: String, text: String, outcome: String, appPackage: String,
+                           session: Long, now: Long = System.currentTimeMillis()) = mutex.withLock {
+        require(kind in setOf("delete_backward", "compose_delete", "clear", "restore"))
+        require(outcome in setOf("requested", "applied"))
+        dao.deleteBefore(now - THREE_HOURS_MS)
+        val previous = activeId?.takeIf { activeSession == session }?.let { dao.find(it) }
+            ?.takeIf { it.appPackage == appPackage }
+        val revision = (previous?.revision ?: 0) + 1
+        val events = DraftEditEvents.append(previous?.editEvents ?: "[]", DraftEditEvent(revision, now, kind, text, outcome))
+        if (previous != null) {
+            dao.update(previous.copy(editEvents = events, updatedAt = now, revision = revision))
+        } else {
+            activeId = dao.insert(DraftEntryRow(createdAt = now, appPackage = appPackage,
+                source = "keyboard", content = "", editEvents = events))
             activeSession = session
         }
     }
