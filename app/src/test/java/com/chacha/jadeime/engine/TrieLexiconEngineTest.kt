@@ -57,6 +57,36 @@ private fun newEngine() = TrieLexiconEngine(staticEntries = fixture)
 
 class TrieLexiconEngineTest {
 
+    private fun segmentationEngine(): TrieLexiconEngine {
+        val rows = javaClass.getResourceAsStream("/pinyin-segmentation.tsv")!!
+            .bufferedReader(Charsets.UTF_8).useLines { lines ->
+                lines.filterNot { it.startsWith("#") }.map { line ->
+                    val fields = line.split('\t')
+                    entry(fields[0], fields[1], fields[2], fields[3].toLong())
+                }.toList()
+            }
+        return TrieLexiconEngine(staticEntries = rows)
+    }
+
+    @Test
+    fun `real frequencies do not split mao and liao to gain common characters`() {
+        val engine = segmentationEngine()
+        for (input in listOf("xianluomao", "meiliaoba")) {
+            val candidates = engine.input(input)
+            assertEquals(input, candidates.first().pinyinConsumed)
+            assertFalse(candidates.first().isAbbreviation)
+            assertEquals(candidates.take(3).toString(), listOf(3, 3, 3), candidates.take(3).map { it.word.length })
+        }
+    }
+
+    @Test
+    fun `explicit vowel boundaries and lexical ambiguity remain available`() {
+        val engine = segmentationEngine()
+        assertEquals(3, engine.input("xi'an'hao").first().word.length)
+        assertEquals("xi'an'hao", engine.input("xi'an'hao").first().pinyinConsumed)
+        assertTrue(engine.input("xianhao").any { it.word.startsWith("西安") })
+    }
+
     @Test
     fun `qwerty ue spelling reaches umlaut syllable without fragmenting into characters`() {
         val engine = TrieLexiconEngine(

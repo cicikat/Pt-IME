@@ -443,14 +443,19 @@ class TrieLexiconEngine(
         val totalScore: Long,
         val segments: Int,
         val abbreviationSegments: Int,
+        val syllables: Int = 0,
+        val extraSyllables: Int = 0,
     ) {
-        fun append(match: SegmentMatch): DecodeState = DecodeState(
+        fun append(match: SegmentMatch, minimumSyllables: Int): DecodeState = DecodeState(
             word = word + match.entry.word,
             canonicalPinyin = canonicalPinyin + match.entry.pinyinKey,
             entryIds = entryIds + match.entry.id,
             totalScore = totalScore + match.score,
             segments = segments + 1,
             abbreviationSegments = abbreviationSegments + if (match.isAbbreviation) 1 else 0,
+            syllables = syllables + match.entry.initials.length,
+            extraSyllables = if (minimumSyllables == Int.MAX_VALUE) 0 else
+                (syllables + match.entry.initials.length - minimumSyllables).coerceAtLeast(0),
         )
 
         fun candidate(pinyin: String): Candidate {
@@ -482,7 +487,8 @@ class TrieLexiconEngine(
         fun rankingScore(): Long =
             totalScore / segments.coerceAtLeast(1) -
                 (segments - 1) * SEGMENTATION_PENALTY -
-                abbreviationSegments * ABBREVIATION_SEGMENT_PENALTY
+                abbreviationSegments * ABBREVIATION_SEGMENT_PENALTY -
+                if (abbreviationSegments == 0) extraSyllables * EXTRA_SYLLABLE_PENALTY else 0L
     }
 
     /** The substring of [pinyin] from [pos] up to (not including) the next [PINYIN_SEPARATOR], or the end. */
@@ -499,6 +505,7 @@ class TrieLexiconEngine(
         shouldCancel: () -> Boolean = { false },
     ): List<Candidate> {
         if (pinyin.isEmpty() || shouldCancel()) return emptyList()
+        val minimumSyllables = minimumSyllableCounts(pinyin, shouldCancel)
         val beams = Array(pinyin.length + 1) { mutableListOf<DecodeState>() }
         beams[0] += DecodeState(
             word = "",
@@ -522,7 +529,8 @@ class TrieLexiconEngine(
                 if (shouldCancel()) return emptyList()
                 for (match in segmentMatches(pinyin, pos, allowAbbreviations, shouldCancel)) {
                     if (shouldCancel()) return emptyList()
-                    beams[pos + match.matchedKey.length] += state.append(match)
+                    val next = pos + match.matchedKey.length
+                    beams[next] += state.append(match, minimumSyllables[next])
                 }
             }
         }
@@ -540,6 +548,29 @@ class TrieLexiconEngine(
         if (states.size <= BEAM_WIDTH) return
         states.sortByDescending(DecodeState::rankingScore)
         states.subList(BEAM_WIDTH, states.size).clear()
+    }
+
+    /** Structural baseline independent of word frequencies. Keep all legal
+     * readings, but charge extra syllables (mao -> ma + o) during pruning too.
+     * Explicit separators are hard boundaries, so xi'an remains intentional.
+     */
+    private fun minimumSyllableCounts(pinyin: String, shouldCancel: () -> Boolean): IntArray {
+        val counts = IntArray(pinyin.length + 1) { Int.MAX_VALUE }
+        counts[0] = 0
+        for (pos in pinyin.indices) {
+            if (shouldCancel()) return counts
+            if (counts[pos] == Int.MAX_VALUE) continue
+            if (pinyin[pos] == PINYIN_SEPARATOR) {
+                counts[pos + 1] = minOf(counts[pos + 1], counts[pos])
+                continue
+            }
+            for (end in pos + 1..minOf(pos + 6, pinyin.length)) {
+                if (pinyin.substring(pos, end) in PINYIN_SYLLABLES) {
+                    counts[end] = minOf(counts[end], counts[pos] + 1)
+                }
+            }
+        }
+        return counts
     }
 
     private fun segmentMatches(
@@ -852,6 +883,7 @@ class TrieLexiconEngine(
         const val PINYIN_CONSONANTS = "bpmfdtnlgkhjqxrzcsyw"
         const val BASE_FREQUENCY_SCALE = 1_000.0
         const val SEGMENTATION_PENALTY = 350L
+        const val EXTRA_SYLLABLE_PENALTY = 3_000L
         // A full pinyin stream must not be reinterpreted as a chain of short
         // initialisms merely because that chain happens to consume every letter.
         // This is deliberately much larger than the normal word-break penalty;
