@@ -35,9 +35,9 @@ internal object SymbolCatalog {
 }
 
 @Composable
-internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, modifier: Modifier = Modifier, repository: com.chacha.jadeime.ime.SymbolRepository? = null) {
+internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, onDelete: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, repository: com.chacha.jadeime.ime.SymbolRepository? = null) {
     var selected by rememberSaveable { mutableIntStateOf(0) }
-    var recent by remember(repository) { mutableStateOf(repository?.recent().orEmpty()) }
+    val recent = remember(repository) { repository?.recent().orEmpty() }
     val categories = remember(recent) {
         listOf(SymbolCategory("常用", (recent + SymbolCatalog.categories.first().values).distinct().take(40))) + SymbolCatalog.categories.drop(1)
     }
@@ -48,7 +48,16 @@ internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, modifier: 
             }
         }
         LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            items(categories[selected].values, key = { it }) { value -> Box(Modifier.fillMaxWidth().height(38.dp).pointerInput(value) { detectTapGestures { repository?.record(value); recent = repository?.recent() ?: (listOf(value) + recent.filter { it != value }).take(40); onPick(value) } }, contentAlignment = Alignment.Center) { Text(value, color = theme.text, fontSize = 20.sp) } }
+            items(categories[selected].values, key = { it }) { value -> Box(Modifier.fillMaxWidth().height(38.dp).pointerInput(value) { detectTapGestures { repository?.record(value); onPick(value) } }, contentAlignment = Alignment.Center) { Text(value, color = theme.text, fontSize = 20.sp) } }
         }
+        PanelActionRow(theme, onClose, onDelete)
+    }
+}
+
+@Composable
+internal fun PanelActionRow(theme: JadeTheme, onClose: () -> Unit, onDelete: () -> Unit) {
+    Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        JadeKey(KeySpec("返回键盘", KeyAction.Letters), "返回键盘", false, theme, Modifier.weight(1f), onClose, null, null, {})
+        JadeKey(KeySpec("⌫", KeyAction.Backspace), "⌫", false, theme, Modifier.width(64.dp), onDelete, null, null, {})
     }
 }

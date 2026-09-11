@@ -461,7 +461,6 @@ internal fun ImeRoot(
                         // neither needs a second "recent" ranking on top.
                         if (isEmoji) {
                             emojiRepository?.recordUsage(picked)
-                            emojiRecent = emojiRepository?.getRecent().orEmpty()
                         }
                     },
                     clipboardEntries = clipboardEntries,
@@ -488,6 +487,7 @@ internal fun ImeRoot(
                         }
                     },
                     onClose = { showEmojiPanel = false },
+                    onDelete = onDeleteBackward,
                     modifier = Modifier.weight(1f),
                 )
               } else {
@@ -525,7 +525,7 @@ internal fun ImeRoot(
                     )
                 }
                 if (page == KeyboardPage.Symbols) {
-                    SymbolsPanel(theme = theme, onPick = { symbol -> flushComposingAsLiteral(); onCommitText(symbol) }, modifier = Modifier.weight(1f), repository = symbolRepository)
+                    SymbolsPanel(theme = theme, onPick = { symbol -> flushComposingAsLiteral(); onCommitText(symbol) }, onDelete = onDeleteBackward, onClose = { page = KeyboardPage.Letters }, modifier = Modifier.weight(1f), repository = symbolRepository)
                 } else rows.forEach { row ->
                     Row(
                         modifier = Modifier
@@ -936,7 +936,7 @@ private fun ToolbarIcon(
 }
 
 @Composable
-private fun JadeKey(
+internal fun JadeKey(
     key: KeySpec,
     label: String,
     active: Boolean,

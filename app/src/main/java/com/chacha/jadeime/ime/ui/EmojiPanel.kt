@@ -61,6 +61,7 @@ internal fun EmojiPanel(
     onDeleteClipboardEntry: (ClipboardEntryRow) -> Unit,
     onClearClipboard: () -> Unit,
     onClose: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(RECENT_TAB_INDEX) }
@@ -71,8 +72,9 @@ internal fun EmojiPanel(
     val tabLabels = remember(categories) {
         listOf("最近") + categories.map { it.label } + listOf("颜文字", "短语", "剪贴板")
     }
+    val recentSnapshot = remember { recent.toList() }
     val items = when (selectedTab) {
-        RECENT_TAB_INDEX -> recent
+        RECENT_TAB_INDEX -> recentSnapshot
         kaomojiTab -> kaomojis
         phraseTab -> phrases
         clipboardTab -> emptyList() // clipboard has its own row model, rendered separately below
@@ -198,6 +200,7 @@ internal fun EmojiPanel(
                 }
             }
         }
+        PanelActionRow(theme, onClose, onDelete)
     }
 }
 
