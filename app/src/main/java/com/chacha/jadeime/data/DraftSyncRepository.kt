@@ -93,6 +93,11 @@ class DraftSyncRepository(context: Context) {
         SyncStatus(uploaded = uploaded, pending = rows.size - uploaded)
     }
 
+    suspend fun uploadStates(rows: List<DraftEntryRow>): Map<Long, Boolean> = mutex.withLock {
+        val prefix = sentPrefix(endpoint, token)
+        rows.associate { it.id to (it.revision <= prefs.getLong("$prefix${it.id}", 0)) }
+    }
+
     /** Sends synthetic content through the real receiver path without acknowledging user drafts. */
     suspend fun testUpload(): Boolean = mutex.withLock {
         val target = endpoint
