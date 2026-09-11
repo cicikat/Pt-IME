@@ -1,6 +1,6 @@
 # 三小时长条草稿与语音（2026-09-09）
 
-> v1 发布更新：草稿记录和回传均默认关闭（升级后也需重新开启）；URL 必须是 HTTPS，DNS 及实际连接目标必须落在 RFC1918 私有 IPv4、IPv6 ULA/链路本地或回环地址，拒绝公网、CGNAT 和重定向。证书使用系统信任链，未放开自签名证书。修改 URL/密钥会关闭回传，重新开启要确认数据接收方；密钥用 Android Keystore 加密。无需作者服务器，用户可按本文协议自建接收端。
+> 2026-09-11 更新：草稿记录与回传默认关闭。支持 HTTP/HTTPS，默认限制私网、回环和 Tailscale 的 100.64/10 地址；公网穿透需手动允许。HTTP 明文传输，HTTPS 保留系统证书校验；不跟随重定向。配置需点击保存；保存会关闭自动回传，重新开启要确认。密钥用 Android Keystore 加密。测试仅发送虚构记录，不读取真实草稿。
 
 本文件取代旧 `ime_draft_sync_api.md`（现移动为 `交接文档ime_draft_sync_api.md`）中的新增记录游标协议。README / DESIGN 的日报统计与离线 ASR 是早期规划，不代表当前实现。
 
@@ -17,7 +17,7 @@
 
 ## 当前回传格式
 
-手机主动向设置中的完整 HTTPS URL 发 HTTP POST；不是电脑拉取，也不是 WebSocket。不包含音频。
+手机主动向设置中的完整 HTTP/HTTPS URL 发 POST；不是电脑拉取，也不是 WebSocket。不包含音频。必须包含服务端实际接收路径；仅填写服务器首页可能返回 405（该路径不接受 POST）。
 
 ```http
 POST /v1/ime/drafts HTTP/1.1
@@ -87,4 +87,4 @@ final 只有在成功提交到非敏感输入框时才记录一次，和同 App 
 
 ### Tailscale pairing (2026-09-11)
 
-HTTPS private-network sync also permits the 100.64.0.0/10 shared address range used by Tailscale. Both devices must connect to the same tailnet. Configure the complete HTTPS receiver endpoint and a dedicated pairing token. System certificate validation, no proxy, no redirects and explicit opt-in remain required.
+Private-network sync permits the 100.64.0.0/10 range used by Tailscale. Configure the complete HTTP/HTTPS receiver endpoint and a dedicated pairing token. HTTPS certificate validation, no proxy, no redirects and explicit opt-in remain required. Public tunnel endpoints require the separate allow-public-address option.

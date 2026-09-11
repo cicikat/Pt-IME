@@ -27,6 +27,13 @@ val prepareLegalAssets by tasks.registering(Sync::class) {
 }
 tasks.named("preBuild").configure { dependsOn(prepareLegalAssets) }
 
+// Optional personal font supplied at the project root; never bundled into Release.
+val preparePersonalFonts by tasks.registering(Sync::class) {
+    from(rootProject.projectDir) { include("zpix.ttf") }
+    into(layout.buildDirectory.dir("generated/personalAssets/fonts"))
+}
+tasks.configureEach { if (name == "preDebugBuild") dependsOn(preparePersonalFonts) }
+
 android {
     namespace = "com.chacha.jadeime"
     compileSdk = 35
@@ -82,6 +89,7 @@ android {
 
     sourceSets["main"].assets.srcDir(rootProject.file("tools/.cache/voice/runtime/assets"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/legalAssets"))
+    sourceSets["debug"].assets.srcDir(layout.buildDirectory.dir("generated/personalAssets"))
     androidResources { noCompress += "onnx" }
 
     packaging {

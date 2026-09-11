@@ -136,4 +136,16 @@ DESIGN.md 3.5。
 - `toolbar`/`candidates`/`panel` 区域覆写只解析不生效
 - `keyTextSecondary`/`candidateText`/`fontScale`/`keySound`/`keyboardHeightScale` 只解析不生效
 - 布局 JSON 不支持热切换（需重新弹出键盘窗口）、没有设置页导入入口（只能 `adb push` 或手动放文件）
-- 没有"简易编辑器"（PLAN M5 原文提到的编辑器 UI 未开工，目前只能手写 JSON）
+- 基础编辑器已提供背景、裁剪、按键透明度和字体；其他高级样式仍使用主题包。
+
+## 基础美化（2026-09-11）
+
+“主题与皮肤”顶部显示键盘预览，下方依次为配色、背景、按键、字体与主题包。
+
+- 背景支持系统 ImageDecoder 能解码的静态图片、GIF、动态 WebP，导入上限 32 MB。拖动/双指或滑块缩放，保存可见裁剪区域。位置使用归一化坐标，图像始终铺满视口；渲染裁剪在键盘边界内，保留原动图。静态图解码长边最多 1600，动图最多 1024，隐藏键盘时停止动画。
+- 按键不透明度只改变按键底色，不影响文字。背景压暗有独立滑块。调整自动保存并同步到键盘，背景裁剪使用显式保存。
+- 支持 TTF/OTF 字体导入、选择，提供跟随主题和系统字体。文件在后台复制、验证和加载，失败时回退系统字体。
+- 自定义外观作为本机覆盖项，切换配色不会丢失；“恢复主题背景”移除背景覆盖。基础外观覆盖目前不包含在主题包导出中。
+- 本机根目录可选的 `zpix.ttf` 自动加入 Debug 构建的字体选项；Release 不捆绑个人字体文件。Zpix 作者许可说明见 https://github.com/SolidZORO/zpix-pixel-font ，本地原文件不作修改。
+
+参考：FlorisBoard 的主题资源分为图片、字体和样式（https://docs.florisboard.org/themes/assets）；本项目使用 Android ImageDecoder / AnimatedImageDrawable，无新增图片加载依赖。

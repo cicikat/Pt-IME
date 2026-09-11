@@ -37,6 +37,7 @@ data class JadeTheme(
     val bgBlur: Int = 0,
     /** 0f-1f black scrim over the background image, for text legibility. */
     val bgDim: Float = 0f,
+    val backgroundCrop: BackgroundCrop = BackgroundCrop(),
     val fontPath: String? = null,
     val fontScale: Float = 1f,
     val keyPressAnimation: AnimationSpec = AnimationSpec(),

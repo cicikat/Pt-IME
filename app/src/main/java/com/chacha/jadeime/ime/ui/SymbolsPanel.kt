@@ -35,7 +35,7 @@ internal object SymbolCatalog {
 }
 
 @Composable
-internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, onDelete: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, repository: com.chacha.jadeime.ime.SymbolRepository? = null) {
+internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier, repository: com.chacha.jadeime.ime.SymbolRepository? = null) {
     var selected by rememberSaveable { mutableIntStateOf(0) }
     val recent = remember(repository) { repository?.recent().orEmpty() }
     val categories = remember(recent) {
@@ -50,12 +50,12 @@ internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, onDelete: 
         LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             items(categories[selected].values, key = { it }) { value -> Box(Modifier.fillMaxWidth().height(38.dp).pointerInput(value) { detectTapGestures { repository?.record(value); onPick(value) } }, contentAlignment = Alignment.Center) { Text(value, color = theme.text, fontSize = 20.sp) } }
         }
-        PanelActionRow(theme, onClose, onDelete)
+        PanelActionRow(theme, onDelete)
     }
 }
 
 @Composable
-internal fun PanelActionRow(theme: JadeTheme, onClose: () -> Unit, onDelete: () -> Unit) {
+internal fun PanelActionRow(theme: JadeTheme, onDelete: () -> Unit) {
     Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Spacer(Modifier.weight(1f))
         JadeKey(KeySpec("⌫", KeyAction.Backspace), "⌫", false, theme, Modifier.width(64.dp), onDelete, null, null, {})

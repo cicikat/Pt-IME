@@ -221,9 +221,11 @@ internal fun ImeRoot(
     // PLAN M5 "热切换": selectedId is a StateFlow, so a theme picked in Settings
     // reaches an already-open keyboard window immediately, no reopen needed.
     val selectedThemeId = themeRepository?.selectedId?.collectAsState()?.value
+    val appearance = themeRepository?.appearance?.collectAsState()?.value
+    val themeRevision = themeRepository?.revision?.collectAsState()?.value
     val isDark = isSystemInDarkTheme()
     val fallbackTheme = if (isDark) BuiltInThemes.dark else BuiltInThemes.light
-    val theme by produceState(fallbackTheme, selectedThemeId, isDark, themeRepository) {
+    val theme by produceState(fallbackTheme, selectedThemeId, isDark, themeRepository, appearance, themeRevision) {
         value = withContext(Dispatchers.IO) { themeRepository?.resolveActive(isDark) ?: fallbackTheme }
     }
     // The previous fixed 252dp surface left the four letter rows feeling cramped,
@@ -235,11 +237,11 @@ internal fun ImeRoot(
     // produceState retains its previous value when a key changes. A single state
     // keyed by page would therefore draw the old page's keys for one frame.
     // Keep each layout in its own slot and select synchronously during composition.
-    val letterRows by produceState(KeyboardLayouts.letters, layoutRepository) {
-        value = withContext(Dispatchers.IO) { layoutRepository?.loadLetters() ?: KeyboardLayouts.letters }
-    }
-    val numericRows by produceState(KeyboardLayouts.numeric, layoutRepository) {
-        value = withContext(Dispatchers.IO) { layoutRepository?.loadNumeric() ?: KeyboardLayouts.numeric }
+    var letterRows by remember(layoutRepository) { mutableStateOf(KeyboardLayouts.letters) }
+    var numericRows by remember(layoutRepository) { mutableStateOf(KeyboardLayouts.numeric) }
+    LaunchedEffect(layoutRepository) {
+        letterRows = withContext(Dispatchers.IO) { layoutRepository?.loadLetters() ?: KeyboardLayouts.letters }
+        numericRows = withContext(Dispatchers.IO) { layoutRepository?.loadNumeric() ?: KeyboardLayouts.numeric }
     }
     val rows = when (page) {
         KeyboardPage.Letters -> letterRows
@@ -412,8 +414,10 @@ internal fun ImeRoot(
         }
     }
 
+    val keyboardFont = com.chacha.jadeime.theme.rememberKeyboardFont(theme.fontPath)
     CompositionLocalProvider(LocalJadeTheme provides theme) {
     MaterialTheme {
+      androidx.compose.material3.ProvideTextStyle(androidx.compose.material3.LocalTextStyle.current.copy(fontFamily = keyboardFont)) {
         Box(modifier = Modifier.fillMaxWidth().background(theme.background).pointerInput(onKeyboardActivity) {
             awaitEachGesture {
                 awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
@@ -426,9 +430,10 @@ internal fun ImeRoot(
         }) {
             val backgroundPath = theme.bgImage
             if (backgroundPath != null) {
-                ThemeBackgroundImage(
+                com.chacha.jadeime.theme.KeyboardBackground(
                     path = backgroundPath,
-                    blurRadius = theme.bgBlur,
+                    blur = theme.bgBlur,
+                    crop = theme.backgroundCrop,
                     dim = theme.bgDim,
                     modifier = Modifier.fillMaxWidth().height(keyboardHeight),
                 )
@@ -523,12 +528,11 @@ internal fun ImeRoot(
                             refreshClipboard()
                         }
                     },
-                    onClose = { showEmojiPanel = false },
                     onDelete = onDeleteBackward,
                     modifier = Modifier.weight(1f),
                 )
                 } else if (page == KeyboardPage.Symbols) {
-                    SymbolsPanel(theme = theme, onPick = { symbol -> flushComposingAsLiteral(); onCommitText(symbol) }, onDelete = onDeleteBackward, onClose = { page = KeyboardPage.Letters }, modifier = Modifier.weight(1f), repository = symbolRepository)
+                    SymbolsPanel(theme = theme, onPick = { symbol -> flushComposingAsLiteral(); onCommitText(symbol) }, onDelete = onDeleteBackward, modifier = Modifier.weight(1f), repository = symbolRepository)
                 } else rows.forEach { row ->
                     Row(
                         modifier = Modifier
@@ -684,7 +688,7 @@ internal fun ImeRoot(
             // ComposingBar) so it paints on top of the keyboard rows below it --
             // Compose has no clipping/z-index across separate subtrees, only draw
             // order, and the rows compose after ComposingBar inside the Column.
-            if (voiceState == null && mode == InputMode.Chinese && candidatesExpanded && composingPinyin.isNotEmpty()) {
+            if (voiceState == null && !showEmojiPanel && page != KeyboardPage.Symbols && mode == InputMode.Chinese && candidatesExpanded && composingPinyin.isNotEmpty()) {
                 ExpandedCandidatesPanel(
                     candidates = candidates,
                     enabled = candidateRevision == compositionRevision,
@@ -694,6 +698,7 @@ internal fun ImeRoot(
             }
 
         }
+      }
     }
     }
 }
@@ -905,9 +910,9 @@ private fun ToolbarRow(
     onOpenEmoji: () -> Unit,
     onOpenSettings: () -> Unit,
     onCollapse: () -> Unit,
+    modifier: Modifier = Modifier,
     symbolsSelected: Boolean = false,
     emojiSelected: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     // Five entries spread evenly across the full row (PLAN M1.7 "五个入口平均分布整行"),
     // each a monochrome line icon instead of a colorful emoji glyph.
@@ -938,7 +943,7 @@ private fun ToolbarIcon(
         contentAlignment = Alignment.Center,
     ) {
         icon(theme.text)
-        if (selected) Box(Modifier.align(Alignment.BottomCenter).size(8.dp, 4.dp).background(theme.text.copy(alpha = .85f), RoundedCornerShape(2.dp)))
+        if (selected) Box(Modifier.align(Alignment.BottomCenter).size(6.dp).background(theme.text.copy(alpha = .85f), RoundedCornerShape(2.dp)))
     }
 }
 
@@ -1149,8 +1154,8 @@ internal fun JadeKey(
                 .offset(y = if (pressed) 1.dp else 0.dp)
                 .then(gestureModifier),
             shape = RoundedCornerShape(theme.keyCornerRadius),
-            color = background,
-            shadowElevation = if (pressed) 0.dp else 2.dp,
+            color = background.copy(alpha = background.alpha * theme.regionAlpha.keys),
+            shadowElevation = if (pressed || theme.regionAlpha.keys < 1f) 0.dp else 2.dp,
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
@@ -1195,42 +1200,6 @@ internal fun JadeKey(
                     )
                 }
             }
-        }
-    }
-}
-
-/** Renders a theme's `bgImage` behind the keyboard with blur + a dark scrim (PLAN M5
- * "扩展字段：bgImage + bgBlur(0-25) + bgDim"). [Modifier.blur] is a no-op below API 31
- * (no RenderEffect there) -- the image still shows, just unblurred; that's an
- * acceptable degrade, not a crash, on minSdk 29 devices. */
-@Composable
-private fun ThemeBackgroundImage(
-    path: String,
-    blurRadius: Int,
-    dim: Float,
-    modifier: Modifier = Modifier,
-) {
-    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, path) {
-        value = withContext(Dispatchers.IO) {
-            runCatching {
-                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                BitmapFactory.decodeFile(path, bounds)
-                val options = BitmapFactory.Options()
-                while (maxOf(bounds.outWidth, bounds.outHeight) / options.inSampleSize > 2048) options.inSampleSize *= 2
-                BitmapFactory.decodeFile(path, options)?.asImageBitmap()
-            }.getOrNull()
-        }
-    }
-    val readyBitmap = bitmap ?: return
-    Box(modifier = modifier) {
-        Image(
-            bitmap = readyBitmap,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().blur(blurRadius.dp),
-        )
-        if (dim > 0f) {
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim)))
         }
     }
 }

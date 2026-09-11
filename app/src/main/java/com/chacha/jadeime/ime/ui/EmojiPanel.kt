@@ -60,7 +60,6 @@ internal fun EmojiPanel(
     onToggleClipboardPin: (ClipboardEntryRow) -> Unit,
     onDeleteClipboardEntry: (ClipboardEntryRow) -> Unit,
     onClearClipboard: () -> Unit,
-    onClose: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -192,7 +191,7 @@ internal fun EmojiPanel(
                 }
             }
         }
-        PanelActionRow(theme, onClose, onDelete)
+        PanelActionRow(theme, onDelete)
     }
 }
 

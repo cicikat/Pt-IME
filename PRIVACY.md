@@ -12,7 +12,7 @@
 
 ## 回传
 
-回传另有默认关闭开关；首次升级 v1 同样要求重新开启草稿并确认回传。需填写 HTTPS URL 和密钥，主动确认后才发送。只允许私有内网/回环地址，不跟随重定向，不使用系统代理，不跳过 TLS 证书校验。域名解析使用系统 DNS，可能产生 DNS 网络请求。
+回传另有默认关闭开关；首次升级 v1 同样要求重新开启草稿并确认回传。需填写完整 HTTP/HTTPS 接口地址和密钥并保存，主动确认后才自动发送。默认只允许私网、回环和 Tailscale 地址；公网穿透需手动开启“允许公网地址”。HTTP 不加密，链路上的人可能读取密钥和草稿；HTTPS 不跳过证书校验。不跟随重定向，不使用系统代理。域名解析使用系统 DNS，可能产生 DNS 网络请求。
 
 接收端能读取非数字文本、来源 App 和时间。手机清空不发远程删除，关闭也不能撤回已经发出的请求。服务端应独立配置保留时间，避免记录请求正文到日志，给每台手机发独立可撤销密钥。
 
@@ -33,4 +33,4 @@
 
 ### Tailscale pairing (2026-09-11)
 
-HTTPS private-network sync also permits the 100.64.0.0/10 shared address range used by Tailscale. Both devices must connect to the same tailnet. Configure the complete HTTPS receiver endpoint and a dedicated pairing token. System certificate validation, no proxy, no redirects and explicit opt-in remain required.
+Private-network sync permits Tailscale's 100.64.0.0/10 range. HTTP is supported with a plaintext warning; HTTPS keeps certificate validation. Public tunnel destinations require explicit opt-in. Neither protocol follows redirects or uses a system proxy.
