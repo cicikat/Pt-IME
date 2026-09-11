@@ -142,6 +142,7 @@ class DraftSyncRepository(context: Context) {
             when {
                 it.isSuccessful -> "连接成功，已发送测试字“测”"
                 it.code == 401 || it.code == 403 -> "密钥无效或没有权限（${it.code}）"
+                it.code == 405 -> "此地址不接受 POST 上传（405）。请填写完整接收路径，例如 /v1/ime/drafts，而不是服务器首页。"
                 it.code in 300..399 -> "接口发生重定向，请填写最终地址（${it.code}）"
                 else -> "服务器返回 ${it.code}，请检查接口路径"
             }

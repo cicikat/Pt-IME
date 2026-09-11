@@ -443,7 +443,44 @@ internal fun ImeRoot(
             ) {
               if (voiceState != null) {
                 VoicePanel(voiceState, theme, onStopVoice, onCancelVoice, onOpenSettings)
-              } else if (showEmojiPanel) {
+              } else {
+                if (!showEmojiPanel && page != KeyboardPage.Symbols && mode == InputMode.Chinese && composingPinyin.isNotEmpty()) {
+                    ComposingBar(
+                        // Keep composing feedback strictly local and O(1). Calling
+                        // previewSegmentation() here walked the large Trie again on
+                        // every Compose recomposition, which made the IME visibly
+                        // stall after only a couple of keys on a real phone.
+                        display = composingPinyin,
+                        rawPinyin = composingPinyin,
+                        cursor = composingCursor,
+                        candidates = candidates,
+                        expanded = candidatesExpanded,
+                        candidatesReady = candidateRevision == compositionRevision,
+                        status = if (engineFailed) "词库加载失败，请重启输入法" else if (engine == null) "词库加载中…" else "正在更新…",
+                        onPick = ::chooseCandidate,
+                        onToggleExpand = { candidatesExpanded = !candidatesExpanded },
+                        onMoveCursor = { composingCursor = it.coerceIn(0, composingPinyin.length) },
+                        theme = theme,
+                        modifier = Modifier.height(44.dp),
+                    )
+                } else {
+                    ToolbarRow(
+                        theme = theme,
+                        onOpenSymbols = { if (showEmojiPanel) { showEmojiPanel = false; page = KeyboardPage.Symbols } else toggleSymbolsPage() },
+                        onOpenSkins = onOpenSkins,
+                        onOpenEmoji = {
+                            emojiRecent = emojiRepository?.getRecent().orEmpty()
+                            showEmojiPanel = !showEmojiPanel
+                            if (!showEmojiPanel) page = KeyboardPage.Letters
+                        },
+                        symbolsSelected = page == KeyboardPage.Symbols && !showEmojiPanel,
+                        emojiSelected = showEmojiPanel,
+                        onOpenSettings = onOpenSettings,
+                        onCollapse = onCollapseKeyboard,
+                        modifier = Modifier.height(44.dp),
+                    )
+                }
+                if (showEmojiPanel) {
                 EmojiPanel(
                     categories = EmojiCatalog.categories,
                     recent = emojiRecent,
@@ -490,41 +527,7 @@ internal fun ImeRoot(
                     onDelete = onDeleteBackward,
                     modifier = Modifier.weight(1f),
                 )
-              } else {
-                if (mode == InputMode.Chinese && composingPinyin.isNotEmpty()) {
-                    ComposingBar(
-                        // Keep composing feedback strictly local and O(1). Calling
-                        // previewSegmentation() here walked the large Trie again on
-                        // every Compose recomposition, which made the IME visibly
-                        // stall after only a couple of keys on a real phone.
-                        display = composingPinyin,
-                        rawPinyin = composingPinyin,
-                        cursor = composingCursor,
-                        candidates = candidates,
-                        expanded = candidatesExpanded,
-                        candidatesReady = candidateRevision == compositionRevision,
-                        status = if (engineFailed) "词库加载失败，请重启输入法" else if (engine == null) "词库加载中…" else "正在更新…",
-                        onPick = ::chooseCandidate,
-                        onToggleExpand = { candidatesExpanded = !candidatesExpanded },
-                        onMoveCursor = { composingCursor = it.coerceIn(0, composingPinyin.length) },
-                        theme = theme,
-                        modifier = Modifier.height(44.dp),
-                    )
-                } else {
-                    ToolbarRow(
-                        theme = theme,
-                        onOpenSymbols = ::toggleSymbolsPage,
-                        onOpenSkins = onOpenSkins,
-                        onOpenEmoji = {
-                            emojiRecent = emojiRepository?.getRecent().orEmpty()
-                            showEmojiPanel = true
-                        },
-                        onOpenSettings = onOpenSettings,
-                        onCollapse = onCollapseKeyboard,
-                        modifier = Modifier.height(44.dp),
-                    )
-                }
-                if (page == KeyboardPage.Symbols) {
+                } else if (page == KeyboardPage.Symbols) {
                     SymbolsPanel(theme = theme, onPick = { symbol -> flushComposingAsLiteral(); onCommitText(symbol) }, onDelete = onDeleteBackward, onClose = { page = KeyboardPage.Letters }, modifier = Modifier.weight(1f), repository = symbolRepository)
                 } else rows.forEach { row ->
                     Row(
@@ -902,6 +905,8 @@ private fun ToolbarRow(
     onOpenEmoji: () -> Unit,
     onOpenSettings: () -> Unit,
     onCollapse: () -> Unit,
+    symbolsSelected: Boolean = false,
+    emojiSelected: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // Five entries spread evenly across the full row (PLAN M1.7 "五个入口平均分布整行"),
@@ -911,9 +916,9 @@ private fun ToolbarRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        ToolbarIcon(theme, onOpenSymbols) { IconSymbols(it, Modifier.size(20.dp)) }
+        ToolbarIcon(theme, onOpenSymbols, symbolsSelected) { IconSymbols(it, Modifier.size(20.dp)) }
         ToolbarIcon(theme, onOpenSkins) { IconPalette(it, Modifier.size(20.dp)) }
-        ToolbarIcon(theme, onOpenEmoji) { IconEmoji(it, Modifier.size(20.dp)) }
+        ToolbarIcon(theme, onOpenEmoji, emojiSelected) { IconEmoji(it, Modifier.size(20.dp)) }
         ToolbarIcon(theme, onOpenSettings) { IconSettings(it, Modifier.size(20.dp)) }
         ToolbarIcon(theme, onCollapse) { IconChevronDown(it, Modifier.size(20.dp)) }
     }
@@ -923,6 +928,7 @@ private fun ToolbarRow(
 private fun ToolbarIcon(
     theme: JadeTheme,
     onClick: () -> Unit,
+    selected: Boolean = false,
     icon: @Composable (Color) -> Unit,
 ) {
     Box(
@@ -932,6 +938,7 @@ private fun ToolbarIcon(
         contentAlignment = Alignment.Center,
     ) {
         icon(theme.text)
+        if (selected) Box(Modifier.align(Alignment.BottomCenter).size(8.dp, 4.dp).background(theme.text.copy(alpha = .85f), RoundedCornerShape(2.dp)))
     }
 }
 

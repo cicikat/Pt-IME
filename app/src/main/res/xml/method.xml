@@ -3,7 +3,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:settingsActivity="com.chacha.jadeime.settings.SettingsActivity">
     <subtype
-        android:imeSubtypeLocale="en_US"
+        android:imeSubtypeLocale="zh_CN"
+        android:languageTag="zh-CN"
         android:imeSubtypeMode="keyboard"
-        android:label="@string/subtype_english" />
+        android:label="@string/subtype_chinese" />
 </input-method>

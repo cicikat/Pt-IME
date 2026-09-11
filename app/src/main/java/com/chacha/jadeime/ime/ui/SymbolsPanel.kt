@@ -57,7 +57,7 @@ internal fun SymbolsPanel(theme: JadeTheme, onPick: (String) -> Unit, onDelete: 
 @Composable
 internal fun PanelActionRow(theme: JadeTheme, onClose: () -> Unit, onDelete: () -> Unit) {
     Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        JadeKey(KeySpec("返回键盘", KeyAction.Letters), "返回键盘", false, theme, Modifier.weight(1f), onClose, null, null, {})
+        Spacer(Modifier.weight(1f))
         JadeKey(KeySpec("⌫", KeyAction.Backspace), "⌫", false, theme, Modifier.width(64.dp), onDelete, null, null, {})
     }
 }

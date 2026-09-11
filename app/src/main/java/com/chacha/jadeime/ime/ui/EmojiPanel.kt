@@ -119,14 +119,6 @@ internal fun EmojiPanel(
                     Text("清空", fontSize = 12.sp, color = theme.text.copy(alpha = 0.7f), modifier = Modifier.padding(horizontal = 8.dp))
                 }
             }
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .pointerInput(onClose) { detectTapGestures(onTap = { onClose() }) },
-                contentAlignment = Alignment.Center,
-            ) {
-                IconKeyboardSwitch(theme.text, Modifier.size(18.dp))
-            }
         }
         if (selectedTab == clipboardTab && clipboardEntries.isNotEmpty()) {
             LazyColumn(
