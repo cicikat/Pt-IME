@@ -16,6 +16,8 @@ import org.json.JSONObject
 
 /** Opt-in LAN sync of already-redacted draft rows. No content is logged. */
 class DraftSyncRepository(context: Context) {
+    data class SyncStatus(val uploaded: Int, val pending: Int)
+
     private val prefs = context.applicationContext.getSharedPreferences("draft_sync", Context.MODE_PRIVATE)
     private val secret = PairingSecret(prefs)
     private val privacy = DraftPrivacySettings(context)
@@ -42,12 +44,11 @@ class DraftSyncRepository(context: Context) {
         .addNetworkInterceptor { chain ->
             val address = chain.connection()?.route()?.socketAddress?.address
             if (address == null || !LanAddressPolicy.allows(address)) throw java.io.IOException("Non-LAN destination blocked")
-            if (!enabled || !privacy.enabled) throw java.io.IOException("Draft sync disabled")
             chain.proceed(chain.request())
         }.build()
     var enabled: Boolean get() = prefs.getBoolean("enabled", false); set(v) { prefs.edit().putBoolean("enabled", v).apply() }
     var endpoint: String get() = prefs.getString("endpoint", "") ?: ""; set(v) { prefs.edit().putString("endpoint", v.trim()).putBoolean("enabled", false).apply() }
-    var token: String get() = secret.read(); set(v) { secret.write(v) }
+    var token: String get() = secret.read(); set(v) { secret.write(v); enabled = false }
     var intervalMinutes: Int get() = prefs.getInt("interval_minutes", 15); set(v) { prefs.edit().putInt("interval_minutes", v.coerceIn(1, 1440)).apply() }
     private val mutex = Mutex()
     private var lastAttempt = 0L
@@ -64,9 +65,7 @@ class DraftSyncRepository(context: Context) {
         if (!enabled || !privacy.enabled || credential.isBlank() || url == null || !url.isHttps ||
             url.username.isNotEmpty() || url.password.isNotEmpty()) return@withLock false
         // A new pairing/receiver must not inherit acknowledgements from the old one.
-        val receiver = java.security.MessageDigest.getInstance("SHA-256")
-            .digest("$target\n$credential".toByteArray()).joinToString("") { "%02x".format(it) }
-        val prefix = "sent_${receiver}_"
+        val prefix = sentPrefix(target, credential)
         db.draftDao().deleteBefore(System.currentTimeMillis() - DraftRepository.THREE_HOURS_MS)
         val recent = db.draftDao().recent(System.currentTimeMillis() - DraftRepository.THREE_HOURS_MS)
         val retainedKeys = recent.map { "$prefix${it.id}" }.toSet()
@@ -83,5 +82,49 @@ class DraftSyncRepository(context: Context) {
                 } else false
             }
         }.getOrDefault(false)
+    }
+
+    suspend fun status(): SyncStatus = mutex.withLock {
+        val now = System.currentTimeMillis()
+        db.draftDao().deleteBefore(now - DraftRepository.THREE_HOURS_MS)
+        val rows = db.draftDao().recent(now - DraftRepository.THREE_HOURS_MS)
+        val prefix = sentPrefix(endpoint, token)
+        val uploaded = rows.count { it.revision <= prefs.getLong("$prefix${it.id}", 0) }
+        SyncStatus(uploaded = uploaded, pending = rows.size - uploaded)
+    }
+
+    /** Sends synthetic content through the real receiver path without acknowledging user drafts. */
+    suspend fun testUpload(): Boolean = mutex.withLock {
+        val target = endpoint
+        val credential = token
+        val url = target.toHttpUrlOrNull()
+        if (credential.isBlank() || url == null || !url.isHttps ||
+            url.username.isNotEmpty() || url.password.isNotEmpty()) return@withLock false
+        val now = System.currentTimeMillis()
+        val body = JSONArray().put(
+            JSONObject()
+                .put("id", now)
+                .put("created_at", now)
+                .put("updated_at", now)
+                .put("revision", 1)
+                .put("app_package", "com.chacha.jadeime.sync_test")
+                .put("source", "keyboard")
+                .put("content", "测"),
+        )
+        execute(target, credential, body)
+    }
+
+    private fun execute(target: String, credential: String, body: JSONArray): Boolean = runCatching {
+        val request = Request.Builder().url(target)
+            .header("Authorization", "Bearer $credential")
+            .post(body.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+        client.newCall(request).execute().use { it.isSuccessful }
+    }.getOrDefault(false)
+
+    private fun sentPrefix(target: String, credential: String): String {
+        val receiver = java.security.MessageDigest.getInstance("SHA-256")
+            .digest("$target\n$credential".toByteArray()).joinToString("") { "%02x".format(it) }
+        return "sent_${receiver}_"
     }
 }

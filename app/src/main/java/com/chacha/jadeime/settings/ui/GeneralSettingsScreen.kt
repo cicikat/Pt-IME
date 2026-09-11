@@ -84,6 +84,12 @@ private fun DraftSyncSection() {
     var interval by remember { mutableStateOf(repo.intervalMinutes.toString()) }
     var recording by remember { mutableStateOf(ServiceLocator.draftPrivacy.enabled) }
     var confirmSync by remember { mutableStateOf(false) }
+    var syncStatus by remember { mutableStateOf<com.chacha.jadeime.data.DraftSyncRepository.SyncStatus?>(null) }
+    var testRunning by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    fun refreshStatus() { scope.launch { syncStatus = repo.status() } }
+    LaunchedEffect(endpoint, token) { syncStatus = repo.status() }
     if (confirmSync) AlertDialog(
         onDismissRequest = { confirmSync = false },
         title = { Text("允许发送输入草稿？") },
@@ -93,19 +99,34 @@ private fun DraftSyncSection() {
     )
     Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("三小时输入草稿", style = MaterialTheme.typography.titleMedium)
-        Text("默认关闭。开启后在手机保存输入文字，仅遮蔽数字；密码/邮箱等敏感输入框除外。关闭不会删除已有草稿，可在最近输入页清除。")
+        Text("默认关闭。每条草稿从最后追加起滚动保留3小时，不是整库定时清空；密码/邮箱等敏感输入框除外。")
         androidx.compose.material3.Switch(checked = recording, onCheckedChange = {
             recording = it; ServiceLocator.draftPrivacy.enabled = it
             if (!it) { enabled = false; repo.enabled = false; ServiceLocator.breakDraftSession() }
         })
         Text("内网增量回传", style = MaterialTheme.typography.titleMedium)
-        Text("默认关闭。仅允许私有内网地址和 HTTPS，不跟随重定向。修改地址或密钥后需要重新开启。", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("默认关闭。成功后按记录 ID 和版本标记已上传；记录追加时只上传新版本，接收端应覆盖旧版本。", color = MaterialTheme.colorScheme.onSurfaceVariant)
         androidx.compose.material3.Switch(checked = enabled, enabled = recording && endpoint.startsWith("https://", true) && token.isNotBlank(), onCheckedChange = {
             if (it) confirmSync = true else { enabled = false; repo.enabled = false }
         })
         OutlinedTextField(endpoint, { endpoint = it; repo.endpoint = it; enabled = false }, Modifier.fillMaxWidth(), label = { Text("HTTPS 地址") }, singleLine = true)
         OutlinedTextField(token, { token = it; repo.token = it; enabled = false }, Modifier.fillMaxWidth(), label = { Text("配对密钥") }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
         OutlinedTextField(interval, { value -> interval = value.filter(Char::isDigit); value.toIntOrNull()?.let { repo.intervalMinutes = it } }, Modifier.fillMaxWidth(), label = { Text("发送间隔（分钟）") }, singleLine = true)
+        syncStatus?.let { Text("当前接收端：已上传 ${it.uploaded} 条，待上传 ${it.pending} 条", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        OutlinedButton(
+            onClick = {
+                testRunning = true
+                testResult = null
+                scope.launch {
+                    testResult = if (repo.testUpload()) "测试上传成功（已发送字符“测”）" else "测试上传失败，请检查地址、密钥、证书和接收端"
+                    testRunning = false
+                    refreshStatus()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !testRunning && endpoint.startsWith("https://", true) && token.isNotBlank(),
+        ) { Text(if (testRunning) "正在测试…" else "测试上传") }
+        testResult?.let { Text(it, color = if (it.startsWith("测试上传成功")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
     }}
 }
 
