@@ -24,7 +24,7 @@ keyPassword=YOUR_PRIVATE_PASSWORD
 
 上述只是格式示例，不是可用密钥。没有文件时生成 unsigned APK，不得作为正式安装包发布。私钥及配置必须安全备份；丢失签名密钥将无法正常覆盖更新。不要把它们放进仓库、Release 附件或分享给用户。
 
-验证：Android SDK `apksigner verify --verbose --print-certs <apk>`；记录 SHA-256。发布附件包含签名 APK、SHA256SUMS.txt、词库源数据包和开源/源码公开声明。GitHub release tag 应指向构建对应提交。
+验证：Android SDK `apksigner verify --verbose --print-certs <apk>`；记录 SHA-256。发布附件包含签名 APK、SHA256SUMS.txt、词库源数据包和开源声明。GitHub release tag 应指向构建对应提交。
 
 ## 从 Debug 切换
 
@@ -35,4 +35,4 @@ keyPassword=YOUR_PRIVATE_PASSWORD
 - 新安装草稿/回传均关闭，地址/密钥为空；配对密钥不进入 APK。
 - HTTPS + 私有地址、禁止重定向、系统证书校验；每设备独立密钥由用户自己的后端管理。
 - 无录音文件、用户数据库、私钥或 Debug 测试组件进入 Release。
-- PolyForm 仅用于本项目原始代码，第三方独立组件保留原许可证和对应源数据；不是 OSI 意义的开源许可证。
+- MIT 仅用于本项目原创代码与文档，第三方独立组件和用户导入资产保留原许可证；词库对应源数据继续随 Release 提供。

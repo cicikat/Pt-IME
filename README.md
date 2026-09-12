@@ -100,8 +100,8 @@ Windows 用 `gradlew.bat`。代理下载失败可试 `python tools/prepare_voice
 
 ## 许可证与致谢
 
-本项目自写代码采用 **PolyForm Noncommercial License 1.0.0**：可以按条款查看、修改和非商业使用。因为限制商业用途，准确称为“源码公开”，不宣称符合 OSI 开源定义。
+本项目原创代码与文档采用 **MIT License**，允许使用、修改、分发与商业使用，但须保留版权和许可声明。
 
-第三方组件不被非商业条款重新授权：独立 rime-ice 衍生词库保留 GPL-3.0-only；sherpa-onnx、所用模型、ONNX Runtime 等保留各自许可证。详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+第三方资产不因根许可证而重新授权：独立 rime-ice 衍生词库保留 GPL-3.0-only；sherpa-onnx、所用模型、ONNX Runtime 和用户自行导入的字体、主题资源等保留各自许可证。详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
 
 感谢 [rime-ice](https://github.com/iDvel/rime-ice)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)，以及提供 IME 架构参考的 FlorisBoard、HeliBoard 等项目。

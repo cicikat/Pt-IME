@@ -1,10 +1,10 @@
 # Third-party components
 
-The root PolyForm Noncommercial license applies only to original Pt JadeBoard code and documentation. It does **not** change or restrict the licenses of the independently distributed components below. Their original licenses and notices remain applicable, including their commercial-use rights where granted.
+The root MIT license applies only to original Pt JadeBoard code and documentation. It does **not** relicense the independently distributed components or user-imported assets below. Their original licenses and notices remain applicable.
 
 | Component | License / source |
 |---|---|
-| `app/src/main/assets/lexicon.db` dictionary data | Derived from [rime-ice](https://github.com/iDvel/rime-ice), GPL-3.0-only. See `docs/licenses/rime-ice-GPL-3.0.txt`. The exact cached YAML inputs and conversion script are distributed in the versioned `Pt-JadeBoard-*-lexicon-source.zip` alongside the APK. Original source headers/attributions are preserved. This dictionary data is excluded from the root PolyForm license. |
+| `app/src/main/assets/lexicon.db` dictionary data | Derived from [rime-ice](https://github.com/iDvel/rime-ice), GPL-3.0-only. See `docs/licenses/rime-ice-GPL-3.0.txt`. The exact cached YAML inputs and conversion script are distributed in the versioned `Pt-JadeBoard-*-lexicon-source.zip` alongside the APK. Original source headers/attributions are preserved. This dictionary data is excluded from the root MIT license. |
 | sherpa-onnx 1.13.7 AAR | [Upstream release/source](https://github.com/k2-fsa/sherpa-onnx/tree/v1.13.7), Apache-2.0; `docs/licenses/sherpa-onnx-LICENSE.txt`. Native libraries in the AAR are not modified. |
 | Streaming Zipformer bilingual zh-en model | [Pinned upstream model](https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/tree/98590b7ed6443e77b714204da2757d75e1a642f4), upstream model card declares Apache-2.0; card in `docs/licenses/speech-model-card.md`. Download URLs and hashes in `tools/voice_assets.json`. Model files are unmodified. |
 | ONNX Runtime (bundled native runtime) | [Microsoft ONNX Runtime](https://github.com/microsoft/onnxruntime), MIT; `docs/licenses/onnxruntime-LICENSE.txt`. |
@@ -13,5 +13,7 @@ The root PolyForm Noncommercial license applies only to original Pt JadeBoard co
 | OkHttp / Okio | [Square](https://github.com/square/okhttp), Apache-2.0. |
 
 Architecture references such as FlorisBoard and HeliBoard are acknowledgements, not relicensing of those projects. The rime dictionary and native speech libraries are separate third-party assets, not code claimed as original JadeBoard code. Redistribution of a modified build must preserve each component's terms and provide corresponding source where required.
+
+Fonts, theme packages, images, emoji packs, symbol packs, and dictionaries imported by users are not distributed by this repository and remain subject to the terms chosen by their respective authors. The optional local `zpix.ttf` development asset is excluded from Release builds and is not covered by the root MIT license.
 
 The APK carries a copy of these notices and license texts in `assets/legal/`; full original program source is available at the release tag. The separate dictionary source archive must accompany distributions of the provided dictionary.
