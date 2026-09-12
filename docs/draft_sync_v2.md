@@ -13,7 +13,7 @@ kind=insert/delete_backward/compose_delete/clear/restore，text为有界且数�
 
 > 2026-09-11 更新：草稿记录与回传默认关闭。支持 HTTP/HTTPS，默认限制私网、回环和 Tailscale 的 100.64/10 地址；公网穿透需手动允许。HTTP 明文传输，HTTPS 保留系统证书校验；不跟随重定向。配置需点击保存；保存会关闭自动回传，重新开启要确认。密钥用 Android Keystore 加密。测试仅发送虚构记录，不读取真实草稿。
 
-本文件取代旧 `ime_draft_sync_api.md`（现移动为 `交接文档ime_draft_sync_api.md`）中的新增记录游标协议。README / DESIGN 的日报统计与离线 ASR 是早期规划，不代表当前实现。
+本文件是当前唯一的草稿回传接口协议。README / DESIGN 的日报统计与离线 ASR 是早期规划，不代表当前实现。
 
 ## 分段与保留
 

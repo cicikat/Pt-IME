@@ -1,6 +1,6 @@
 # Release 构建与签名
 
-v1.0.0：versionCode 10000，applicationId `com.chacha.jadeime`，Android 10+，仅 arm64-v8a。Release 不包含 debug instrumentation、测试 PCM 或调试 UI 工具。
+当前版本号以 `app/build.gradle.kts` 为准；applicationId `com.chacha.jadeime`，Android 10+，仅 arm64-v8a。Release 不包含 debug instrumentation、测试 PCM 或调试 UI 工具。
 
 ## 构建
 

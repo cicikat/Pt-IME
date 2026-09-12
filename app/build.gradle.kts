@@ -42,8 +42,8 @@ android {
         applicationId = "com.chacha.jadeime"
         minSdk = 29
         targetSdk = 35
-        versionCode = 10000
-        versionName = "1.0.0"
+        versionCode = 10001
+        versionName = "1.0.1"
 
         ndk {
             abiFilters += "arm64-v8a"

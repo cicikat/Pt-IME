@@ -4,11 +4,11 @@
 
 **无需账号，不绑定开发者服务器。** 打字和语音识别在手机本地运行。草稿记录、回传默认关闭，由你决定是否记录、发给哪台电脑、如何处理。
 
-[下载 v1.0.0](https://github.com/cicikat/Pt-IME/releases/tag/v1.0.0) · [接口协议](docs/draft_sync_v2.md) · [隐私说明](PRIVACY.md) · [许可证](LICENSE)
+[下载 v1.0.1](https://github.com/cicikat/Pt-IME/releases/tag/v1.0.1) · [接口协议](docs/draft_sync_v2.md) · [主题与字体接入](docs/theming.md) · [隐私说明](PRIVACY.md) · [许可证](LICENSE)
 
 ## 安装与使用
 
-- Android 10+，仅 **arm64-v8a** 手机。下载 Release 的 `Pt-JadeBoard-v1.0.0-arm64-v8a.apk`，安装后在设置中启用并切换输入法。
+- Android 10+，仅 **arm64-v8a** 手机。下载 Release 的 `Pt-JadeBoard-v1.0.1-arm64-v8a.apk`，安装后在设置中启用并切换输入法。
 - 中英双语离线模型约 198 MB，已打包，无需另装系统语音服务。
 - 长按空格 → 等待“麦克风已开启” → 说话 → 点“完成”上屏；“取消”丢弃当前识别。需要麦克风权限。
 - 官方 Release 与早期 Debug 使用不同签名，不能直接覆盖。**不要直接卸载旧版：卸载会清除本地数据。** 首次切换请自行保存需要的短语、主题等内容，目前没有全量迁移工具。
