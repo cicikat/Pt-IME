@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -45,4 +45,6 @@ jobs:
         run: python tools/prepare_voice.py
 
       - name: Build, test, and lint
-        run: ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug testDebugUnitTest lintDebug
